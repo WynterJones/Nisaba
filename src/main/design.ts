@@ -117,26 +117,26 @@ function luminance(color: string): number {
 function inferRoles(colors: string[], backgrounds: string[]): Tokens['colors'] {
   const out: Tokens['colors'] = []
   const seen = new Set<string>()
-  const add = (value: string, count: number, role: string): void => {
+  const add = (value: string, role: string, inferred: boolean): void => {
     if (!value || seen.has(value)) return
     seen.add(value)
-    out.push({ value, count, role })
+    out.push({ value, count: 0, role, inferred })
   }
 
+  // These four are Nisaba reading meaning into what it measured.
   const sortedBg = [...backgrounds].sort((a, b) => luminance(a) - luminance(b))
-  add(sortedBg[0], 0, 'surface / darkest')
-  add(sortedBg[sortedBg.length - 1], 0, 'surface / lightest')
-  add(colors[0], 0, 'body text')
-
-  // The most-used background that is neither near-black nor near-white reads as an accent.
+  add(sortedBg[0], 'surface / darkest', true)
+  add(sortedBg[sortedBg.length - 1], 'surface / lightest', true)
+  add(colors[0], 'body text', true)
   const accent = backgrounds.find((c) => {
     const l = luminance(c)
     return l > 0.12 && l < 0.82 && !seen.has(c)
   })
-  add(accent ?? '', 0, 'likely accent')
+  add(accent ?? '', 'likely accent', true)
 
-  for (const value of backgrounds) add(value, 0, 'observed background')
-  for (const value of colors) add(value, 0, 'observed foreground')
+  // These are plain measurements and are labelled as such.
+  for (const value of backgrounds) add(value, 'background', false)
+  for (const value of colors) add(value, 'text', false)
   return out.slice(0, 14)
 }
 
@@ -172,7 +172,7 @@ function toMarkdown(host: string, url: string, tokens: Tokens, typeScale: TypeSc
 
 | Value | Reading |
 | --- | --- |
-${tokens.colors.map((c) => `| \`${c.value}\` | ${c.role} _(inferred)_ |`).join('\n')}
+${tokens.colors.map((c) => `| \`${c.value}\` | ${c.role}${c.inferred ? ' _(inferred)_' : ' _(observed)_'} |`).join('\n')}
 
 ## Typography
 

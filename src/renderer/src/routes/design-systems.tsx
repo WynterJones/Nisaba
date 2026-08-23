@@ -91,7 +91,10 @@ function Detail({
                         <span className="min-w-0">
                           <span className="block truncate font-mono text-[10px]">{c.value}</span>
                           <span className="block truncate text-[10px] text-muted-foreground">
-                            {c.role} <em>(inferred)</em>
+                            {c.role}{' '}
+                            <em className={c.inferred ? 'text-amber-400/80' : ''}>
+                              ({c.inferred ? 'inferred' : 'observed'})
+                            </em>
                           </span>
                         </span>
                       </button>

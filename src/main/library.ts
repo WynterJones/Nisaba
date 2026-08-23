@@ -66,7 +66,7 @@ export type DesignSystemRecord = Base & {
   url: string
   file: string
   tokens: {
-    colors: { value: string; count: number; role: string }[]
+    colors: { value: string; count: number; role: string; inferred: boolean }[]
     fonts: { family: string; weights: string[]; sizes: string[] }[]
     spacing: string[]
     radii: string[]

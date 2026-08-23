@@ -150,7 +150,7 @@ export function Annotator({
   useEffect(() => {
     const el = boxRef.current
     if (!el) return
-    const measure = (): void => setSize({ w: el.clientWidth, h: el.clientHeight })
+    const measure = (): void => setSize({ w: el.clientWidth, h: el.scrollHeight })
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
@@ -334,13 +334,16 @@ export function Annotator({
           </div>
         </div>
 
-        <div
-          ref={boxRef}
-          onMouseDown={onDown}
-          onMouseMove={onMove}
-          onMouseUp={onUp}
-          className="relative max-h-[60vh] cursor-crosshair select-none overflow-hidden rounded-lg border border-border bg-secondary/30"
-        >
+        {/* The scroll container is separate from the drawing surface, so a tall full-page
+            capture can be scrolled and still annotated with correct coordinates. */}
+        <div className="max-h-[60vh] overflow-auto rounded-lg border border-border bg-secondary/30">
+          <div
+            ref={boxRef}
+            onMouseDown={onDown}
+            onMouseMove={onMove}
+            onMouseUp={onUp}
+            className="relative cursor-crosshair select-none"
+          >
           <img
             src={window.api.library.url(capture.file)}
             alt={capture.title}
@@ -369,6 +372,7 @@ export function Annotator({
               <Shape key={shape.id} shape={shape} w={size.w} h={size.h} />
             ))}
           </svg>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-2">
