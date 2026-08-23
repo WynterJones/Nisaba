@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Camera, ExternalLink, FolderOpen, PenLine, Trash2 } from 'lucide-react'
 import { Annotator } from '@/components/library/annotator'
 import { CaptureViewer } from '@/components/library/capture-viewer'
+import { TagEditor } from '@/components/library/tag-editor'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { cn } from '@/lib/utils'
 import { useApp, useLibrary } from '@/store'
@@ -134,6 +135,7 @@ export default function Captures(): React.JSX.Element {
       views={['grid', 'table']}
       groupBy={{ label: 'Site', of: (c) => c.host }}
       nameOf={(c) => c.title}
+      tagsOf={(c) => c.tags ?? []}
     >
       {(shown, view) =>
         view === 'grid' ? (
@@ -163,6 +165,12 @@ export default function Captures(): React.JSX.Element {
                     {timeAgo(record.createdAt)}
                     {record.annotations?.length ? ` · ${record.annotations.length} note(s)` : ''}
                   </p>
+                  <TagEditor
+                    collection="captures"
+                    id={record.id}
+                    tags={record.tags ?? []}
+                    className="mt-1.5"
+                  />
                 </figcaption>
               </figure>
             ))}

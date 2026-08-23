@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router'
 import { ExternalLink, FolderOpen, SquareDashedMousePointer, Trash2 } from 'lucide-react'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
+import { TagEditor } from '@/components/library/tag-editor'
 import { useApp, useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ export default function Sections(): React.JSX.Element {
       views={['grid', 'table']}
       groupBy={{ label: 'Site', of: (s) => s.host }}
       nameOf={(s) => s.name}
+      tagsOf={(s) => s.tags ?? []}
     >
       {(shown, view) =>
         view === 'table' ? (
@@ -136,6 +138,8 @@ export default function Sections(): React.JSX.Element {
                 <code className="truncate rounded bg-secondary/60 px-1.5 py-1 font-mono text-[10px] text-muted-foreground">
                   {record.selector}
                 </code>
+
+                <TagEditor collection="sections" id={record.id} tags={record.tags ?? []} />
 
                 <div className="flex flex-wrap gap-1">
                   {record.colors.slice(0, 6).map((color, i) => (

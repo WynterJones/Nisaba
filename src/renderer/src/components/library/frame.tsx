@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowDownUp, Check, LayoutGrid, ListFilter, Rows3, Search, type LucideIcon } from 'lucide-react'
+import {
+  ArrowDownUp,
+  Check,
+  LayoutGrid,
+  ListFilter,
+  Rows3,
+  Search,
+  Tag,
+  type LucideIcon
+} from 'lucide-react'
 import { Backdrop } from '@/components/canvas/backdrop'
 import { useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
@@ -28,6 +37,7 @@ export function LibraryFrame<T extends { createdAt: number }>({
   actions,
   views = ['grid'],
   groupBy,
+  tagsOf,
   nameOf,
   children
 }: {
@@ -43,6 +53,8 @@ export function LibraryFrame<T extends { createdAt: number }>({
   views?: View[]
   /** Enables the Filter control; usually the source site. */
   groupBy?: { label: string; of: (item: T) => string }
+  /** Enables tag filtering in the Filter menu. */
+  tagsOf?: (item: T) => string[]
   /** Enables sorting by name. */
   nameOf?: (item: T) => string
   children: (shown: T[], view: View) => React.ReactNode
@@ -50,6 +62,7 @@ export function LibraryFrame<T extends { createdAt: number }>({
   const [view, setView] = useState<View>(views[0])
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState<string | null>(null)
+  const [tags, setTags] = useState<string[]>([])
   const [sort, setSort] = useState<Sort>('newest')
   const navigate = useNavigate()
 
@@ -68,18 +81,31 @@ export function LibraryFrame<T extends { createdAt: number }>({
     return [...counts.entries()].sort((a, b) => b[1] - a[1])
   }, [items, groupBy])
 
+  const tagCounts = useMemo(() => {
+    if (!tagsOf) return []
+    const counts = new Map<string, number>()
+    for (const item of items) {
+      for (const tag of tagsOf(item)) counts.set(tag, (counts.get(tag) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  }, [items, tagsOf])
+
   const shown = useMemo(() => {
     let rows = items
     if (query) rows = rows.filter((item) => search(item).toLowerCase().includes(query.toLowerCase()))
     if (group && groupBy) rows = rows.filter((item) => groupBy.of(item) === group)
+    // Several tags read as "any of these", which is what people expect from chips.
+    if (tags.length > 0 && tagsOf) {
+      rows = rows.filter((item) => tagsOf(item).some((tag) => tags.includes(tag)))
+    }
     const sorted = [...rows]
     if (sort === 'oldest') sorted.sort((a, b) => a.createdAt - b.createdAt)
     else if (sort === 'name' && nameOf) sorted.sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
     else sorted.sort((a, b) => b.createdAt - a.createdAt)
     return sorted
-  }, [items, query, group, sort])
+  }, [items, query, group, sort, tags])
 
-  const filtering = Boolean(group) || sort !== 'newest'
+  const filtering = Boolean(group) || tags.length > 0 || sort !== 'newest'
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -104,7 +130,7 @@ export function LibraryFrame<T extends { createdAt: number }>({
         <div className="ml-auto flex items-center gap-2">
           {actions}
 
-          {(groupBy || nameOf) && (
+          {(groupBy || nameOf || tagsOf) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -114,7 +140,7 @@ export function LibraryFrame<T extends { createdAt: number }>({
                   title="Filter and sort"
                 >
                   <ListFilter className="size-3.5" />
-                  {group ?? 'Filter'}
+                  {group ?? (tags.length > 0 ? `${tags.length} tag${tags.length === 1 ? '' : 's'}` : 'Filter')}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-80 w-56 overflow-auto">
@@ -134,6 +160,40 @@ export function LibraryFrame<T extends { createdAt: number }>({
                     {label}
                   </DropdownMenuItem>
                 ))}
+
+                {tagsOf && tagCounts.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="flex items-center gap-1.5">
+                      <Tag className="size-3" />
+                      Tags
+                    </DropdownMenuLabel>
+                    {tags.length > 0 && (
+                      <DropdownMenuItem onSelect={() => setTags([])}>
+                        <Check className="size-3.5 opacity-0" />
+                        Clear tag filter
+                      </DropdownMenuItem>
+                    )}
+                    {tagCounts.map(([tag, count]) => (
+                      <DropdownMenuItem
+                        key={tag}
+                        // Keep the menu open so several tags can be picked in one go.
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          setTags((current) =>
+                            current.includes(tag)
+                              ? current.filter((t) => t !== tag)
+                              : [...current, tag]
+                          )
+                        }}
+                      >
+                        <Check className={cn('size-3.5', !tags.includes(tag) && 'opacity-0')} />
+                        <span className="min-w-0 flex-1 truncate">{tag}</span>
+                        <span className="text-xs text-muted-foreground">{count}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
 
                 {groupBy && groups.length > 0 && (
                   <>

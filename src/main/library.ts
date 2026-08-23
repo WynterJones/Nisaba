@@ -11,6 +11,8 @@ type Base = { id: string; createdAt: number }
 export type CaptureRecord = Base & {
   /** 64-bit dHash of `file`, for similarity search. */
   phash?: string | null
+  /** Free-form labels for organising and filtering. */
+  tags?: string[]
   kind: 'viewport' | 'fullpage' | 'region' | 'element'
   file: string
   url: string
@@ -31,6 +33,8 @@ export type Annotation =
 export type SectionRecord = Base & {
   /** 64-bit dHash of `file`, for similarity search. */
   phash?: string | null
+  /** Free-form labels for organising and filtering. */
+  tags?: string[]
   name: string
   file: string
   url: string

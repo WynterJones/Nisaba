@@ -96,6 +96,7 @@ function Shape({ shape, w, h }: { shape: Annotation; w: number; h: number }): Re
     )
   }
   if (shape.type === 'text') {
+    if (!shape.text) return <g />
     return (
       <text
         x={shape.at.x * w}
@@ -143,6 +144,7 @@ export function Annotator({
   const [color, setColor] = useState(COLORS[0])
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
   const [ghost, setGhost] = useState<Annotation | null>(null)
+  const [editing, setEditing] = useState<{ id: string; x: number; y: number } | null>(null)
   const [saving, setSaving] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -172,6 +174,11 @@ export function Annotator({
       window.removeEventListener('resize', measure)
     }
   }, [measure])
+
+  const update = (id: string, patch: Partial<Annotation>): void =>
+    setShapes((current) =>
+      current.map((shape) => (shape.id === id ? ({ ...shape, ...patch } as Annotation) : shape))
+    )
 
   /** Everything is stored normalised, so a re-export at any size stays correct. */
   const at = (e: React.MouseEvent): { x: number; y: number } => {
@@ -204,14 +211,26 @@ export function Annotator({
     if (tool === 'text' || tool === 'callout') {
       const shape = build(point, point)
       if (shape.type === 'text') {
-        const text = window.prompt('Label')
-        if (!text) return
-        shape.text = text
+        // Electron has no window.prompt, so the label is typed straight onto the image.
+        shape.text = ''
+        setShapes((s) => [...s, shape])
+        setEditing({ id: shape.id, x: point.x, y: point.y })
+        return
       }
       setShapes((s) => [...s, shape])
       return
     }
     setDrag(point)
+  }
+
+  /** Commits or discards the label being typed. */
+  const finishText = (keep: boolean): void => {
+    if (!editing) return
+    const current = shapes.find((s) => s.id === editing.id)
+    if (!keep || (current?.type === 'text' && !current.text.trim())) {
+      setShapes((s) => s.filter((shape) => shape.id !== editing.id))
+    }
+    setEditing(null)
   }
 
   const onMove = (e: React.MouseEvent): void => {
@@ -222,8 +241,12 @@ export function Annotator({
   const onUp = (e: React.MouseEvent): void => {
     if (!drag) return
     const shape = build(drag, at(e))
+    // The threshold has to be in pixels: a fraction of a 6000px-tall capture is enormous,
+    // and every small box was being thrown away.
     const big =
-      'rect' in shape ? shape.rect.width > 0.01 && shape.rect.height > 0.01 : true
+      'rect' in shape
+        ? shape.rect.width * size.w > 4 && shape.rect.height * size.h > 4
+        : true
     if (big) setShapes((s) => [...s, shape])
     setDrag(null)
     setGhost(null)
@@ -389,6 +412,29 @@ export function Annotator({
               <Shape key={shape.id} shape={shape} w={size.w} h={size.h} />
             ))}
           </svg>
+
+          {editing && (
+            <input
+              autoFocus
+              value={
+                (shapes.find((s) => s.id === editing.id) as { text?: string } | undefined)?.text ?? ''
+              }
+              onMouseDown={(e) => e.stopPropagation()}
+              onChange={(e) => update(editing.id, { text: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') finishText(true)
+                if (e.key === 'Escape') finishText(false)
+              }}
+              onBlur={() => finishText(true)}
+              placeholder="Label…"
+              style={{
+                left: editing.x * size.w,
+                top: editing.y * size.h - 26,
+                borderColor: color
+              }}
+              className="absolute z-10 w-52 rounded border-2 bg-background/95 px-2 py-1 text-sm outline-none"
+            />
+          )}
           </div>
         </div>
 

@@ -13,6 +13,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { timeAgo } from '@/components/library/frame'
+import { TagEditor } from '@/components/library/tag-editor'
 import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -200,6 +201,8 @@ export function CaptureViewer({
             </div>
           </div>
         )}
+
+        <TagEditor collection="captures" id={capture.id} tags={capture.tags ?? []} />
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground">
