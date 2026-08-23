@@ -18,7 +18,7 @@ export function CommandPalette(): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
-  const { tabs, newTab, activateTab } = useApp()
+  const { tabs, newTab, activateTab, setOverlay } = useApp()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -42,7 +42,10 @@ export function CommandPalette(): React.JSX.Element {
   return (
     <CommandDialog
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(next) => {
+        setOpen(next)
+        setOverlay(next)
+      }}
       title="Command palette"
       description="Jump to a library, open a tab, or enter a URL"
     >

@@ -19,7 +19,6 @@ import { useActiveTab, useApp, type Tool } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 /** Bare domains and anything with a scheme are URLs; everything else is a web search. */
 export function toUrl(input: string): string {
@@ -111,18 +110,14 @@ export function BrowserToolbar(): React.JSX.Element {
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />
           {tab?.url && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => window.api.browser.openExternal(tab.url)}
-                  className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
-                >
-                  <ExternalLink className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Open in default browser</TooltipContent>
-            </Tooltip>
+            <button
+              type="button"
+              title="Open in your default browser"
+              onClick={() => window.api.browser.openExternal(tab.url)}
+              className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+            >
+              <ExternalLink className="size-3.5" />
+            </button>
           )}
         </div>
       </form>
@@ -150,28 +145,19 @@ export function BrowserToolbar(): React.JSX.Element {
       <Separator orientation="vertical" className="h-6" />
 
       <div className="flex shrink-0 items-center">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleInspector}
-              className={cn(inspectorOpen && 'text-brand-bright')}
-              aria-label="Toggle inspector"
-            >
-              <PanelRight className="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Inspector</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Compare view">
-              <Columns2 className="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Compare source and output</TooltipContent>
-        </Tooltip>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleInspector}
+          title="Inspector"
+          className={cn(inspectorOpen && 'text-brand-bright')}
+          aria-label="Toggle inspector"
+        >
+          <PanelRight className="size-4" />
+        </Button>
+        <Button variant="ghost" size="icon" title="Compare source and output" aria-label="Compare view">
+          <Columns2 className="size-4" />
+        </Button>
         <Button variant="ghost" size="icon" aria-label="Browser settings">
           <Settings2 className="size-4" />
         </Button>

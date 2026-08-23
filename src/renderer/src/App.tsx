@@ -6,6 +6,7 @@ import { CommandPalette } from '@/components/shell/command-palette'
 import { JobsDrawer } from '@/components/shell/jobs-drawer'
 import { Sidebar } from '@/components/shell/sidebar'
 import { TitleBar } from '@/components/shell/title-bar'
+import Bookmarks from '@/routes/bookmarks'
 import Browse from '@/routes/browse'
 import HomeRoute from '@/routes/home'
 import LibraryRoute from '@/routes/library'
@@ -14,7 +15,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 const LIBRARY_ITEMS = NAV_ITEMS.filter(
-  (item) => !['/', '/browse', '/settings'].includes(item.to)
+  (item) => !['/', '/browse', '/settings', '/bookmarks'].includes(item.to)
 )
 
 function Shell(): React.JSX.Element {
@@ -31,6 +32,7 @@ function Shell(): React.JSX.Element {
           <Routes>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/browse" element={<Browse />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/settings" element={<Settings />} />
             {LIBRARY_ITEMS.map((item) => (
               <Route key={item.to} path={item.to} element={<LibraryRoute item={item} />} />

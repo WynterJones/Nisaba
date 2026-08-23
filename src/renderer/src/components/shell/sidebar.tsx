@@ -1,13 +1,10 @@
 import { NavLink } from 'react-router'
 import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import logo from '@/assets/logo.png'
-import mark from '@/assets/mark.png'
 import { NAV } from '@/nav'
 import { useApp } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 function NavRow({
   to,
@@ -20,10 +17,11 @@ function NavRow({
   icon: React.ComponentType<{ className?: string }>
   collapsed: boolean
 }): React.JSX.Element {
-  const link = (
+  return (
     <NavLink
       to={to}
       end={to === '/'}
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
           'group relative flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
@@ -52,14 +50,6 @@ function NavRow({
       )}
     </NavLink>
   )
-
-  if (!collapsed) return link
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
-    </Tooltip>
-  )
 }
 
 export function Sidebar(): React.JSX.Element {
@@ -73,20 +63,8 @@ export function Sidebar(): React.JSX.Element {
         collapsed ? 'w-14' : 'w-[228px]'
       )}
     >
-      <div
-        className={cn(
-          'drag-region flex h-[52px] shrink-0 items-center',
-          collapsed ? 'justify-center' : 'pl-[76px] pr-3'
-        )}
-      >
-        {/* Logo art ships on black; screen-blending drops that plate onto the sidebar. */}
-        <img
-          src={collapsed ? mark : logo}
-          alt="Nisaba"
-          className={cn('select-none', collapsed ? 'size-7 rounded-md' : 'h-9 mix-blend-screen')}
-          draggable={false}
-        />
-      </div>
+      {/* Reserves the macOS traffic-light strip and gives the window a drag handle. */}
+      <div className="drag-region h-[52px] shrink-0" />
 
       <ScrollArea className="min-h-0 flex-1">
         <nav className="flex flex-col gap-4 px-2 pb-3">
