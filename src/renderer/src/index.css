@@ -1,12 +1,186 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Nisaba is a dark-only application surface (matches the browsing concept).
+  ponytail: single palette, no light theme — add a `.light` block here if it's ever asked for.
+*/
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, sans-serif;
+  --radius: 0.5rem;
+
+  --background: oklch(0.145 0.004 285);
+  --foreground: oklch(0.925 0.004 285);
+
+  --card: oklch(0.185 0.005 285);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.195 0.005 285);
+  --popover-foreground: var(--foreground);
+
+  /* Brand purple #7928DB — used sparingly: primary actions, selection, active state. */
+  --brand: oklch(0.506 0.244 296.8);
+  --brand-bright: oklch(0.574 0.223 297.4);
+  --primary: var(--brand);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.235 0.005 285);
+  --secondary-foreground: var(--foreground);
+
+  --muted: oklch(0.225 0.005 285);
+  --muted-foreground: oklch(0.63 0.008 285);
+
+  --accent: oklch(0.255 0.006 285);
+  --accent-foreground: var(--foreground);
+
+  --destructive: oklch(0.58 0.21 27);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.255 0.005 285);
+  --input: oklch(0.27 0.005 285);
+  --ring: var(--brand-bright);
+
+  --sidebar: oklch(0.165 0.004 285);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.235 0.005 285);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: oklch(0.235 0.005 285);
+  --sidebar-ring: var(--ring);
+
+  --chart-1: var(--brand);
+  --chart-2: oklch(0.65 0.15 250);
+  --chart-3: oklch(0.7 0.13 180);
+  --chart-4: oklch(0.75 0.14 90);
+  --chart-5: oklch(0.68 0.17 20);
 }
 
-body {
-  margin: 0;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: var(--brand);
+  --color-brand-bright: var(--brand-bright);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 }
 
-main {
-  padding: 3rem;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased overflow-hidden;
+    /* Desktop app: no rubber-band scroll, no text selection outside inputs. */
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full border-2 border-transparent bg-clip-padding;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+}
+
+@utility drag-region {
+  -webkit-app-region: drag;
+}
+
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* --- Personality -------------------------------------------------------- */
+
+/* Barber-pole stripes so a running job always looks alive, even while stalled. */
+@keyframes nisaba-stripes {
+  to {
+    background-position: 28px 0;
+  }
+}
+
+.progress-stripes::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: repeating-linear-gradient(
+    -55deg,
+    rgb(255 255 255 / 0.22) 0 6px,
+    transparent 6px 14px
+  );
+  background-size: 28px 100%;
+  animation: nisaba-stripes 700ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-stripes::after {
+    animation: none;
+  }
+}
+
+/* The fox pokes its head up when you hover something it can do. */
+@utility hover-lift {
+  transition: transform 150ms ease;
+  &:hover {
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: translateY(0);
+  }
 }
