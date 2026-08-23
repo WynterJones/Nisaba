@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { TabState } from '../../preload'
+import type { CaptureRecord, SectionDraft, SectionRecord, TabState } from '../../preload'
 
 export type Tool = 'capture' | 'extract' | 'convert' | null
 
@@ -28,6 +28,9 @@ type AppState = {
   tabs: TabState[]
   activeTabId: string | null
   tool: Tool
+  /** The section currently picked out of a live page, before it is saved. */
+  selection: SectionDraft | null
+  picking: boolean
   inspectorOpen: boolean
   sidebarCollapsed: boolean
   jobsOpen: boolean
@@ -38,6 +41,8 @@ type AppState = {
   activateTab: (id: string) => void
   patchTab: (patch: Partial<TabState> & { id: string }) => void
   setTool: (tool: Tool) => void
+  setSelection: (selection: SectionDraft | null) => void
+  setPicking: (picking: boolean) => void
   toggleInspector: () => void
   toggleSidebar: () => void
   setJobsOpen: (open: boolean) => void
@@ -61,19 +66,12 @@ export const useApp = create<AppState>((set, get) => ({
   tabs: [],
   activeTabId: null,
   tool: null,
+  selection: null,
+  picking: false,
   inspectorOpen: true,
   sidebarCollapsed: false,
   jobsOpen: true,
-  // ponytail: seeded so the jobs drawer has something to render before Phase 5 lands.
-  jobs: [
-    {
-      id: 'job-seed',
-      agent: 'Claude Code',
-      label: 'Building React component',
-      progress: 68,
-      status: 'running'
-    }
-  ],
+  jobs: [],
 
   newTab: (url = '') => {
     const id = nextId()
@@ -101,6 +99,8 @@ export const useApp = create<AppState>((set, get) => ({
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === patch.id ? { ...t, ...patch } : t)) })),
 
   setTool: (tool) => set((s) => ({ tool: s.tool === tool ? null : tool })),
+  setSelection: (selection) => set({ selection }),
+  setPicking: (picking) => set({ picking }),
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setJobsOpen: (jobsOpen) => set({ jobsOpen }),
@@ -164,3 +164,57 @@ export const useBookmarks = create<BookmarkState>()(
     { name: 'nisaba.bookmarks' }
   )
 )
+
+/** Mirror of the on-disk library index; every mutation goes through main and re-reads. */
+type LibraryState = {
+  captures: CaptureRecord[]
+  sections: SectionRecord[]
+  loaded: boolean
+  refresh: () => Promise<void>
+  remove: (kind: 'captures' | 'sections', id: string) => Promise<void>
+}
+
+export const useLibrary = create<LibraryState>((set, get) => ({
+  captures: [],
+  sections: [],
+  loaded: false,
+
+  refresh: async () => {
+    const index = await window.api.library.read()
+    set({ captures: index.captures, sections: index.sections, loaded: true })
+  },
+
+  remove: async (kind, id) => {
+    await window.api.library.remove(kind, id)
+    await get().refresh()
+  }
+}))
+
+/** Sites are derived from what you actually captured, not stored separately. */
+export type SiteSummary = {
+  host: string
+  captures: number
+  sections: number
+  lastSeen: number
+  latestUrl: string
+}
+
+export function useSites(): SiteSummary[] {
+  const { captures, sections } = useLibrary()
+  const map = new Map<string, SiteSummary>()
+
+  const touch = (host: string, url: string, at: number): SiteSummary => {
+    const existing = map.get(host) ?? { host, captures: 0, sections: 0, lastSeen: 0, latestUrl: url }
+    if (at > existing.lastSeen) {
+      existing.lastSeen = at
+      existing.latestUrl = url
+    }
+    map.set(host, existing)
+    return existing
+  }
+
+  for (const c of captures) touch(c.host, c.url, c.createdAt).captures++
+  for (const s of sections) touch(s.host, s.url, s.createdAt).sections++
+
+  return [...map.values()].sort((a, b) => b.lastSeen - a.lastSeen)
+}

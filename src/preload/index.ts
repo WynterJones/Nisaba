@@ -1,4 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { CaptureRecord, LibraryIndex, SectionRecord } from '../main/library'
+import type { SectionDraft } from '../main/extract'
+import type { AgentInstallation } from '../main/agents'
+
+export type { CaptureRecord, LibraryIndex, SectionRecord, SectionDraft, AgentInstallation }
 
 export type TabState = {
   id: string
@@ -28,6 +33,33 @@ const api = {
       ipcRenderer.on('window:state', listener)
       return () => ipcRenderer.off('window:state', listener)
     }
+  },
+
+  capture: {
+    viewport: (): Promise<CaptureRecord | null> => invoke('capture:viewport'),
+    fullPage: (): Promise<CaptureRecord | null> => invoke('capture:fullpage'),
+    region: (): Promise<CaptureRecord | null> => invoke('capture:region'),
+    rect: (rect: Bounds): Promise<CaptureRecord | null> => invoke('capture:rect', rect)
+  },
+
+  extract: {
+    select: (): Promise<SectionDraft | null> => invoke('extract:select'),
+    cancel: (): Promise<void> => invoke('extract:cancel'),
+    save: (draft: SectionDraft): Promise<SectionRecord> => invoke('extract:save', draft)
+  },
+
+  library: {
+    read: (): Promise<LibraryIndex> => invoke('library:read'),
+    root: (): Promise<string> => invoke('library:root'),
+    remove: (kind: 'captures' | 'sections', id: string): Promise<void> =>
+      invoke('library:delete', kind, id),
+    reveal: (file: string): Promise<void> => invoke('library:reveal', file),
+    /** Library images are served over the app-only nisaba:// scheme. */
+    url: (file: string): string => `nisaba://library/${file}`
+  },
+
+  agents: {
+    detect: (): Promise<AgentInstallation[]> => invoke('agents:detect')
   },
 
   browser: {

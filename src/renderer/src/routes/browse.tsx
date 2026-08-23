@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { ArrowUpRight, Compass } from 'lucide-react'
+import { ArrowUpRight, Compass, MousePointerClick, X } from 'lucide-react'
+import { cancelExtract } from '@/actions'
 import { BrowserToolbar, toUrl } from '@/components/shell/browser-toolbar'
 import { Inspector } from '@/components/shell/inspector'
 import { useActiveTab, useApp } from '@/store'
@@ -72,12 +73,29 @@ function StartPage(): React.JSX.Element {
 
 export default function Browse(): React.JSX.Element {
   const hasTab = useApp((s) => s.tabs.length > 0)
+  const picking = useApp((s) => s.picking)
   const inspectorOpen = useApp((s) => s.inspectorOpen)
   const tab = useActiveTab()
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <BrowserToolbar />
+      {picking && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-brand/40 bg-brand/10 px-4 py-1.5 text-sm text-brand-bright">
+          <MousePointerClick className="size-4 animate-pulse" />
+          <span>Click a region of the page to extract it.</span>
+          <span className="text-brand-bright/60">
+            ↑ parent · ↓ child · ←→ siblings · Esc cancels
+          </span>
+          <button
+            onClick={() => void cancelExtract()}
+            className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-xs hover:bg-brand/20"
+          >
+            <X className="size-3" />
+            Cancel
+          </button>
+        </div>
+      )}
       <div className="flex min-h-0 flex-1">
         {hasTab ? <ViewportHost /> : <StartPage />}
         {inspectorOpen && <Inspector />}

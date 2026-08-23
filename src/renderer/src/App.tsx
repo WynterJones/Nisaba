@@ -1,27 +1,58 @@
 import { useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router'
+import { captureFullPage, captureRegion, captureViewport, startExtract } from '@/actions'
 import { NAV_ITEMS } from '@/nav'
-import { useApp } from '@/store'
+import { useApp, useLibrary } from '@/store'
 import { CommandPalette } from '@/components/shell/command-palette'
 import { JobsDrawer } from '@/components/shell/jobs-drawer'
 import { Sidebar } from '@/components/shell/sidebar'
 import { TitleBar } from '@/components/shell/title-bar'
 import Bookmarks from '@/routes/bookmarks'
 import Browse from '@/routes/browse'
+import Captures from '@/routes/captures'
 import HomeRoute from '@/routes/home'
 import LibraryRoute from '@/routes/library'
+import Sections from '@/routes/sections'
 import Settings from '@/routes/settings'
+import Sites from '@/routes/sites'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
-const LIBRARY_ITEMS = NAV_ITEMS.filter(
-  (item) => !['/', '/browse', '/settings', '/bookmarks'].includes(item.to)
-)
+const BUILT = ['/', '/browse', '/settings', '/bookmarks', '/captures', '/sections', '/sites']
+const PLACEHOLDER_ITEMS = NAV_ITEMS.filter((item) => !BUILT.includes(item.to))
+
+/** ⌘⇧2/3/4 capture, ⌘⇧E extracts — the same handlers the toolbar menu calls. */
+function useShortcuts(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return
+      const run = {
+        '@': captureViewport,
+        '2': captureViewport,
+        '#': captureFullPage,
+        '3': captureFullPage,
+        $: captureRegion,
+        '4': captureRegion,
+        e: startExtract,
+        E: startExtract
+      }[e.key]
+      if (run) {
+        e.preventDefault()
+        void run()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+}
 
 function Shell(): React.JSX.Element {
   const patchTab = useApp((s) => s.patchTab)
+  const refresh = useLibrary((s) => s.refresh)
 
   useEffect(() => window.api.browser.onTabUpdated(patchTab), [patchTab])
+  useEffect(() => void refresh(), [refresh])
+  useShortcuts()
 
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -33,8 +64,11 @@ function Shell(): React.JSX.Element {
             <Route path="/" element={<HomeRoute />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/captures" element={<Captures />} />
+            <Route path="/sections" element={<Sections />} />
+            <Route path="/sites" element={<Sites />} />
             <Route path="/settings" element={<Settings />} />
-            {LIBRARY_ITEMS.map((item) => (
+            {PLACEHOLDER_ITEMS.map((item) => (
               <Route key={item.to} path={item.to} element={<LibraryRoute item={item} />} />
             ))}
           </Routes>
@@ -51,7 +85,7 @@ export default function App(): React.JSX.Element {
     <HashRouter>
       <TooltipProvider delayDuration={300}>
         <Shell />
-        <Toaster position="bottom-right" />
+        <Toaster position="top-center" />
       </TooltipProvider>
     </HashRouter>
   )

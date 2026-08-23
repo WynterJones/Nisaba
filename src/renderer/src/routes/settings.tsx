@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Bot, Folder, Info, Shield } from 'lucide-react'
+import { Bot, CheckCircle2, Folder, Info, RefreshCw, Shield, XCircle } from 'lucide-react'
+import { useLibrary } from '@/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import type { AgentInstallation } from '../../../preload'
 
 function Section({
   icon: Icon,
@@ -35,24 +37,21 @@ function Section({
   )
 }
 
-function FolderRow({ label, value }: { label: string; value: string }): React.JSX.Element {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <div className="flex gap-2">
-        <Input readOnly value={value} className="h-9 font-mono text-xs" />
-        <Button variant="secondary" size="sm" className="shrink-0">
-          Choose…
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 export default function Settings(): React.JSX.Element {
   const [version, setVersion] = useState('')
+  const [root, setRoot] = useState('')
+  const [agents, setAgents] = useState<AgentInstallation[] | null>(null)
+  const { captures, sections } = useLibrary()
+
+  const detect = (): void => {
+    setAgents(null)
+    void window.api.agents.detect().then(setAgents)
+  }
+
   useEffect(() => {
     void window.api.getVersion().then(setVersion)
+    void window.api.library.root().then(setRoot)
+    detect()
   }, [])
 
   return (
@@ -62,55 +61,98 @@ export default function Settings(): React.JSX.Element {
 
         <Section
           icon={Folder}
-          title="Workspace"
-          description="Where Nisaba writes your library and generated code. Everything stays local."
+          title="Library"
+          description="Where captures, sections and their metadata are written. Everything stays local."
         >
-          <FolderRow label="Library" value="~/Nisaba/library" />
-          <FolderRow label="Components" value="~/Nisaba/components" />
-          <FolderRow label="Templates" value="~/Nisaba/templates" />
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Library folder</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={root} className="h-9 font-mono text-xs" />
+              <Button
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                onClick={() => window.api.library.reveal('index.json')}
+              >
+                Reveal
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {captures.length} captures · {sections.length} sections. Choosing a custom folder
+              arrives with workspaces.
+            </p>
+          </div>
         </Section>
 
         <Section
           icon={Bot}
           title="Agents"
-          description="Nisaba drives a CLI you already have installed and authenticated."
+          description="Nisaba drives a CLI you already installed and authenticated. It never ships a model."
         >
-          {['Claude Code CLI', 'Codex CLI'].map((agent) => (
-            <div key={agent} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{agent}</p>
-                <p className="text-xs text-muted-foreground">Not detected</p>
+          {agents === null ? (
+            <p className="text-sm text-muted-foreground">Checking for installed CLIs…</p>
+          ) : (
+            agents.map((agent) => (
+              <div key={agent.id} className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  {agent.path ? (
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                  ) : (
+                    <XCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{agent.label}</p>
+                    <p className="truncate font-mono text-xs text-muted-foreground">
+                      {agent.path
+                        ? `${agent.path}${agent.version ? ` · ${agent.version}` : ''}`
+                        : 'Not detected on this machine'}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <Button variant="secondary" size="sm">
-                Locate…
-              </Button>
-            </div>
-          ))}
+            ))
+          )}
+          <Button variant="secondary" size="sm" className="self-start" onClick={detect}>
+            <RefreshCw className="size-3.5" />
+            Re-scan
+          </Button>
         </Section>
 
         <Section
           icon={Shield}
           title="Privacy"
-          description="No account, no telemetry by default. Browsed pages are treated as untrusted."
+          description="No account, no telemetry. Browsed pages are treated as untrusted data."
         >
+          <div className="flex items-center justify-between">
+            <Label htmlFor="sanitize" className="text-sm font-normal">
+              Strip scripts, handlers and form values from saved HTML
+            </Label>
+            <Switch id="sanitize" defaultChecked disabled />
+          </div>
           <div className="flex items-center justify-between">
             <Label htmlFor="diagnostics" className="text-sm font-normal">
               Share anonymous diagnostics
             </Label>
-            <Switch id="diagnostics" />
+            <Switch id="diagnostics" disabled />
           </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="sanitize" className="text-sm font-normal">
-              Strip scripts and form values from saved HTML
-            </Label>
-            <Switch id="sanitize" defaultChecked />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Sanitization is always on in this build and diagnostics are never collected, so both
+            switches are fixed for now.
+          </p>
         </Section>
 
         <Section icon={Info} title="About" description="Nisaba — Browse. Capture. Compound.">
           <p className="text-sm text-muted-foreground">
             Version <span className="font-mono text-foreground">{version || '…'}</span>
           </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="self-start"
+            onClick={() => window.api.browser.openExternal('https://github.com/WynterJones/Nisaba')}
+          >
+            View the source
+          </Button>
         </Section>
       </div>
     </ScrollArea>

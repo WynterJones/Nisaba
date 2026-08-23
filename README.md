@@ -11,7 +11,9 @@ A desktop browser for designers and developers whose browsing should leave somet
 [![React](https://img.shields.io/badge/React-19-7928DB.svg)](https://react.dev)
 [![Local first](https://img.shields.io/badge/local--first-no%20account-7928DB.svg)](#privacy)
 
-<img src="docs/screenshot.png" alt="Nisaba browsing a site with the inspector open" width="100%">
+<img src="docs/screenshot.png" alt="Nisaba in extract mode: a live page with the DOM selection overlay active and the inspector open" width="100%">
+
+<sub>Extract mode — hover the live page, walk the DOM with the arrow keys, click to keep everything about a region.</sub>
 
 </div>
 
@@ -45,17 +47,30 @@ in your stack.
 
 ## Status
 
-Nisaba is being built in phases. **Phase 1 — Application Foundation** is in progress.
+Nisaba is being built in phases. The core loop — browse, capture, extract, organize — works today.
 
-- [x] Secure Electron shell, frameless window, custom chrome
-- [x] Isolated `WebContentsView` browsing with default-deny permissions
-- [x] Typed IPC boundary between the trusted app and remote pages
-- [x] App UI: navigation, browser chrome, inspector, jobs drawer, command palette
-- [ ] SQLite schema, migrations and artifact repositories
-- [ ] Workspace creation and folder selection
-- [ ] Phase 2 — capture engine and annotation editor
-- [ ] Phase 3 — extraction and site profiling
-- [ ] Phase 5 — agent adapters and the job queue
+**Working**
+
+- [x] Multi-tab browsing in isolated `WebContentsView`s with default-deny permissions
+- [x] Capture: visible viewport, full scrollable page (via CDP, beyond the viewport), dragged region, picked element
+- [x] Extract: hover-to-select overlay with arrow-key DOM navigation, returning a robust selector, sanitized HTML, computed styles, CSS custom properties, fonts, palette, assets and accessibility metadata
+- [x] Technology detection with a confidence score and the evidence behind it
+- [x] Library on disk: Captures, Sections, Sites and Bookmarks, with search, delete and reveal-in-Finder
+- [x] Agent CLI detection for Claude Code and Codex, and a resolved-prompt preview before any run
+- [x] Keyboard shortcuts, command palette, single-instance locking
+
+**Not yet**
+
+- [ ] Annotation editor for captures
+- [ ] Design system extraction and `design.md` generation
+- [ ] Element Style Matrix, Components, Templates, Resources
+- [ ] Running agent jobs and verifying their output
+- [ ] SQLite, workspaces and portable export
+
+Screens that are specified but not implemented say so plainly in the app rather than showing a
+fake empty state.
+
+<img src="docs/library.png" alt="The Captures library with real screenshots of Vercel, Stripe and Linear" width="100%">
 
 The full specification, including all eight phases and their acceptance criteria, lives in
 [`_PLANS/PRD.md`](_PLANS/PRD.md).
@@ -85,10 +100,15 @@ npm run dev
 
 ```text
 src/
-  main/         Trusted process — windows, remote views, filesystem, CLI, IPC
-  preload/      The narrow typed bridge; the only surface the app UI can call
-  renderer/     React + Tailwind + shadcn/ui application UI
-_PLANS/         Product requirements and design references
+  main/
+    browser.ts    Tab lifecycle and isolated WebContentsViews
+    capture.ts    Viewport, full-page (CDP) and region screenshots
+    extract.ts    The in-page selection overlay and artifact collector
+    library.ts    On-disk index, the nisaba:// asset protocol
+    agents.ts     CLI discovery and version probing
+  preload/        The narrow typed bridge; the only surface the app UI can call
+  renderer/       React + Tailwind + shadcn/ui application UI
+_PLANS/           Product requirements and design references
 ```
 
 ## Architecture

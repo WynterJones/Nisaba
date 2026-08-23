@@ -19,8 +19,8 @@ export default function LibraryRoute({ item }: { item: NavItem }): React.JSX.Ele
       <header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-border px-5">
         <Icon className="size-4 text-brand-bright" />
         <h1 className="text-sm font-semibold">{item.label}</h1>
-        <span className="rounded bg-secondary px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
-          0
+        <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-200/80">
+          Not built yet
         </span>
 
         <div className="ml-4 flex h-8 min-w-0 max-w-sm flex-1 items-center gap-2 rounded-lg border border-input bg-secondary/50 px-3 focus-within:border-brand-bright">
@@ -67,11 +67,15 @@ export default function LibraryRoute({ item }: { item: NavItem }): React.JSX.Ele
           <Icon className="size-6 text-muted-foreground" />
         </span>
         <div className="flex flex-col gap-1.5">
-          <h2 className="text-base font-medium">No {item.label.toLowerCase()} yet</h2>
+          <h2 className="text-base font-medium">{item.label}</h2>
           {item.blurb && <p className="max-w-sm text-sm text-muted-foreground">{item.blurb}</p>}
+          <p className="max-w-sm text-xs text-muted-foreground/70">
+            This screen is specified but not implemented yet. Captures, Sections, Sites and
+            Bookmarks are live today.
+          </p>
         </div>
-        <Button size="sm" onClick={() => navigate('/browse')}>
-          Start browsing
+        <Button size="sm" variant="secondary" onClick={() => navigate('/captures')}>
+          See what is working
         </Button>
       </div>
     </div>

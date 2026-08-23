@@ -2,6 +2,35 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { autoUpdater } from 'electron-updater'
 import { registerBrowserIpc } from './browser'
+import { registerCaptureIpc } from './capture'
+import { registerExtractIpc } from './extract'
+import { registerAgentIpc } from './agents'
+import {
+  libraryRoot,
+  readIndex,
+  registerLibraryProtocol,
+  registerLibraryProtocolScheme,
+  removeRecord,
+  revealRecord
+} from './library'
+
+registerLibraryProtocolScheme()
+
+/**
+ * A second instance would keep its own copy of the library index and clobber the first
+ * one's writes. Focus the existing window instead.
+ */
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+}
+
+app.on('second-instance', () => {
+  const [win] = BrowserWindow.getAllWindows()
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.focus()
+  }
+})
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -43,6 +72,18 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  registerLibraryProtocol()
+  registerCaptureIpc()
+  registerExtractIpc()
+  registerAgentIpc()
+
+  ipcMain.handle('library:read', () => readIndex())
+  ipcMain.handle('library:root', () => libraryRoot())
+  ipcMain.handle('library:delete', (_e, kind: 'captures' | 'sections', id: string) =>
+    removeRecord(kind, id)
+  )
+  ipcMain.handle('library:reveal', (_e, file: string) => revealRecord(file))
+
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('app:platform', () => process.platform)
   ipcMain.handle('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize())

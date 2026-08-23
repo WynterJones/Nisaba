@@ -71,6 +71,16 @@ function createView(win: BrowserWindow, id: string): WebContentsView {
   return view
 }
 
+/** The remote view the user is currently looking at, if any. */
+export function activeView(): WebContentsView | undefined {
+  return activeId ? views.get(activeId) : undefined
+}
+
+/** Bounds of the page area in window coordinates — needed to place capture overlays. */
+export function viewportBounds(): Bounds {
+  return lastBounds
+}
+
 function layout(win: BrowserWindow): void {
   for (const [id, view] of views) {
     view.setVisible(id === activeId)
@@ -83,7 +93,7 @@ export function registerBrowserIpc(win: BrowserWindow): void {
   const handle = <T>(channel: string, fn: (...args: never[]) => T): void => {
     ipcMain.handle(channel, (_e, ...args) => fn(...(args as never[])))
   }
-  const active = (): WebContentsView | undefined => (activeId ? views.get(activeId) : undefined)
+  const active = activeView
 
   handle('browser:open', (id: string, url: string) => {
     const view = views.get(id) ?? createView(win, id)

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router'
+import { NavLink, useNavigate } from 'react-router'
 import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { NAV } from '@/nav'
 import { useApp } from '@/store'
@@ -55,6 +55,7 @@ function NavRow({
 export function Sidebar(): React.JSX.Element {
   const collapsed = useApp((s) => s.sidebarCollapsed)
   const toggle = useApp((s) => s.toggleSidebar)
+  const navigate = useNavigate()
 
   return (
     <aside
@@ -86,6 +87,8 @@ export function Sidebar(): React.JSX.Element {
 
       <div className="shrink-0 border-t border-sidebar-border p-2">
         <button
+          onClick={() => navigate('/workspaces')}
+          title="Workspaces"
           className={cn(
             'flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-sidebar-accent',
             collapsed && 'justify-center'
