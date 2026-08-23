@@ -39,9 +39,11 @@ export const captureRegion = (): Promise<void> =>
  * The picked section lands in the inspector unsaved, so it can be reviewed first.
  */
 export async function startExtract(): Promise<void> {
-  const { setPicking, setSelection, setTool } = useApp.getState()
+  const { setPicking, setSelection, setTool, openInspector } = useApp.getState()
   setPicking(true)
   setTool('extract')
+  // The panel is where the selection shows up, so open it before handing over to the page.
+  openInspector('inspect')
   try {
     const draft = await window.api.extract.select()
     if (draft) setSelection(draft)

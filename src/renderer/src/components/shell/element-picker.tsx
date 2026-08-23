@@ -69,10 +69,10 @@ export function ElementPicker({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-[48vh]">
-          <div className="flex flex-col gap-4 pr-3">
+        <ScrollArea className="h-[48vh] w-full">
+          <div className="flex w-full min-w-0 flex-col gap-4 pr-3">
             {categories.map((category) => (
-              <section key={category} className="flex flex-col gap-1.5">
+              <section key={category} className="flex w-full min-w-0 flex-col gap-1.5">
                 <h3 className="text-xs font-semibold text-muted-foreground">{category}</h3>
                 {candidates
                   .filter((c) => c.category === category)
@@ -80,7 +80,7 @@ export function ElementPicker({
                     <label
                       key={candidate.key}
                       className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-lg border p-2.5 transition-colors',
+                        'flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-2.5 transition-colors',
                         chosen.has(candidate.key)
                           ? 'border-brand/50 bg-brand/5'
                           : 'border-border hover:bg-accent/40'
@@ -108,9 +108,13 @@ export function ElementPicker({
                         {candidate.text.slice(0, 14) || candidate.category}
                       </span>
 
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm">{candidate.label}</span>
-                        <span className="block truncate font-mono text-[10px] text-muted-foreground">
+                      <span className="min-w-0 flex-1 overflow-hidden">
+                        <span className="block w-full truncate text-sm">{candidate.label}</span>
+                        {/* Selector paths are arbitrarily long; keep the full one in the tooltip. */}
+                        <span
+                          title={candidate.selector}
+                          className="block w-full truncate font-mono text-[10px] text-muted-foreground"
+                        >
                           {candidate.selector}
                         </span>
                       </span>
