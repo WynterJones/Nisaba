@@ -1,0 +1,20 @@
+appId: com.wynterjones.nisaba
+productName: Nisaba
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+publish:
+  provider: github
+  owner: WynterJones
+  repo: Nisaba
+mac:
+  target: dmg
+  category: public.app-category.productivity
+win:
+  target: nsis
+linux:
+  target: AppImage
+  category: Utility
