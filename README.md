@@ -9,6 +9,7 @@ A desktop browser for designers and developers whose browsing should leave somet
 [![License: MIT](https://img.shields.io/badge/license-MIT-7928DB.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-33-7928DB.svg)](https://electronjs.org)
 [![React](https://img.shields.io/badge/React-19-7928DB.svg)](https://react.dev)
+[![macOS](https://img.shields.io/badge/macOS-7928DB.svg)](https://github.com/WynterJones/Nisaba/releases)
 [![Local first](https://img.shields.io/badge/local--first-no%20account-7928DB.svg)](#privacy)
 
 <img src="docs/screenshot.png" alt="Nisaba in extract mode: a live page with the DOM selection overlay active and the inspector open" width="100%">
@@ -92,11 +93,12 @@ kept alongside as `index.json.migrated`.
 
 ## Install
 
-Prebuilt installers for macOS, Windows and Linux are published on the
-[Releases](https://github.com/WynterJones/Nisaba/releases) page. The app updates itself from there.
+**macOS** builds are published on the [Releases](https://github.com/WynterJones/Nisaba/releases)
+page, and the app updates itself from there.
 
-Or build it yourself — see [Develop](#develop) below. There is no account, no sign-in and no
-server; the whole thing runs on your machine.
+Windows and Linux aren't shipped yet, but nothing in Nisaba is macOS-specific — build it yourself
+with the steps in [Develop](#develop) below. There is no account, no sign-in and no server; the
+whole thing runs on your machine.
 
 ## Develop
 
