@@ -24,8 +24,9 @@ import type { PinContext } from '../main/audit'
 import type { Needle, SourceMatch } from '../main/sourcemap'
 import type { SimilarHit } from '../main/similarity'
 import type { Check, PreviewState } from '../main/verify'
+import type { UpdateState } from '../main/updater'
 
-export type { Check, PreviewState, SimilarHit }
+export type { Check, PreviewState, SimilarHit, UpdateState }
 
 export type { PinContext, SourceMatch }
 
@@ -206,6 +207,13 @@ const api = {
 
   agents: {
     detect: (): Promise<AgentInstallation[]> => invoke('agents:detect')
+  },
+
+  update: {
+    state: (): Promise<UpdateState> => invoke('update:state'),
+    check: (): Promise<UpdateState> => invoke('update:check'),
+    install: (): Promise<void> => invoke('update:install'),
+    onState: (cb: (state: UpdateState) => void): (() => void) => subscribe('update:state', cb)
   },
 
   browser: {

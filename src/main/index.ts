@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, dialog, ipcMain } from 'electron'
 import { join } from 'path'
-import { autoUpdater } from 'electron-updater'
+import { registerUpdaterIpc } from './updater'
 import { registerBrowserIpc } from './browser'
 import { registerCaptureIpc } from './capture'
 import { registerExtractIpc } from './extract'
@@ -142,7 +142,7 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 
-  if (app.isPackaged) void autoUpdater.checkForUpdatesAndNotify()
+  registerUpdaterIpc()
 })
 
 app.on('before-quit', stopAllPreviews)

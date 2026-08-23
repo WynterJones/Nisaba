@@ -54,21 +54,41 @@ export async function startExtract(): Promise<void> {
   }
 }
 
+/**
+ * Picks an element and saves it straight to Captures. This is the Capture-menu path —
+ * Extract is the separate one that loads the inspector for converting.
+ */
+export async function captureElement(): Promise<void> {
+  const { setPicking } = useApp.getState()
+  setPicking(true)
+  try {
+    const draft = await window.api.extract.select()
+    if (!draft) return
+    const record = await window.api.capture.rect(draft.rect)
+    if (record) await useLibrary.getState().refresh()
+  } catch (error) {
+    fail(error)
+  } finally {
+    setPicking(false)
+  }
+}
+
 export async function cancelExtract(): Promise<void> {
   await window.api.extract.cancel()
   useApp.getState().setPicking(false)
 }
 
-export async function saveSelection(): Promise<void> {
-  const { selection, setSelection } = useApp.getState()
-  if (!selection) return
+/** Files the current selection so an agent job has something on disk to read. */
+export async function saveSelection(): Promise<import('../../preload').SectionRecord | null> {
+  const { selection } = useApp.getState()
+  if (!selection) return null
   try {
-    await window.api.extract.save(selection)
+    const record = await window.api.extract.save(selection)
     await useLibrary.getState().refresh()
-    setSelection(null)
-    toast.success('Section saved', { description: selection.name })
+    return record
   } catch (error) {
     fail(error)
+    return null
   }
 }
 

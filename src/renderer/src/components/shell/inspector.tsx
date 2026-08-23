@@ -7,7 +7,6 @@ import {
   Loader2,
   MousePointerClick,
   Play,
-  Save,
   ShieldAlert,
   Sparkles,
   Terminal,
@@ -282,7 +281,7 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
   const workspace = workspaces.find((w) => w.id === workspaceId)
   const agent = agents?.find((a) => a.id === workspace?.agent)
 
-  /** Only a section that has been saved has files on disk for the agent to read. */
+  /** The agent reads the section from disk, so it is filed automatically when a job runs. */
   const savedSource = selection
     ? sections.find((s) => s.selector === selection.selector && s.url === selection.url)
     : undefined
@@ -306,13 +305,15 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
   }
 
   const run = async (): Promise<void> => {
-    if (!workspace || !savedSource || !agent?.path) return
+    if (!workspace || !agent?.path || !selection) return
     setStarting(true)
     try {
+      const source = savedSource ?? (await saveSelection())
+      if (!source) return
       await window.api.jobs.run({
         workspaceId: workspace.id,
         profile,
-        sourceIds: [savedSource.id],
+        sourceIds: [source.id],
         extra,
         kind: 'component',
         binary: agent.path,
@@ -328,13 +329,11 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
     }
   }
 
-  const blocker = !savedSource
-    ? 'Save this section first — the agent reads it from disk.'
-    : workspaces.length === 0
-      ? 'Create a workspace so the agent has somewhere it is allowed to write.'
-      : !agent?.path
-        ? 'The agent CLI for this workspace was not found on this machine.'
-        : null
+  const blocker = workspaces.length === 0
+    ? 'Create a workspace so the agent has somewhere it is allowed to write.'
+    : !agent?.path
+      ? 'The agent CLI for this workspace was not found on this machine.'
+      : null
 
   return (
     <ScrollArea className="h-full">
@@ -530,14 +529,14 @@ export function Inspector(): React.JSX.Element {
         </div>
       </Tabs>
 
-      <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border p-3">
-        <Button variant="secondary" disabled={!selection} onClick={() => void saveSelection()}>
-          <Save className="size-4" />
-          Save section
-        </Button>
-        <Button disabled={!selection} onClick={() => setInspectorTab('ai')}>
+      <div className="shrink-0 border-t border-border p-3">
+        <Button
+          className="w-full"
+          disabled={!selection}
+          onClick={() => setInspectorTab('ai')}
+        >
           <Sparkles className="size-4" />
-          Convert
+          Convert to a component
         </Button>
       </div>
     </aside>

@@ -3,6 +3,7 @@ import { ChevronRight, ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from 'luc
 import { NAV, SYSTEM, isFlyout, type NavFlyout } from '@/nav'
 import { useApp } from '@/store'
 import { cn } from '@/lib/utils'
+import { UpdateButton } from '@/components/shell/update-button'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -154,7 +155,8 @@ export function Sidebar(): React.JSX.Element {
         </nav>
       </ScrollArea>
 
-      <div className="shrink-0 border-t border-sidebar-border p-2">
+      <div className="flex shrink-0 flex-col gap-1 border-t border-sidebar-border p-2">
+        <UpdateButton collapsed={collapsed} />
         <DropdownMenu onOpenChange={setOverlay}>
           <DropdownMenuTrigger asChild>
             <button

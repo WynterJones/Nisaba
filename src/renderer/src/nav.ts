@@ -13,7 +13,6 @@ import {
   Palette,
   PenLine,
   Settings,
-  SquareDashedMousePointer,
   SquareLibrary,
   type LucideIcon
 } from 'lucide-react'
@@ -61,27 +60,6 @@ export const KNOWLEDGE: NavFlyout = {
   ]
 }
 
-/** Sections are what a capture becomes once you extract from it, so they share a shelf. */
-export const CAPTURED: NavFlyout = {
-  key: 'captured',
-  label: 'Captures',
-  icon: Camera,
-  items: [
-    {
-      to: '/captures',
-      label: 'Captures',
-      icon: Camera,
-      blurb: 'Viewport, full-page and region screenshots with their source metadata.'
-    },
-    {
-      to: '/sections',
-      label: 'Sections',
-      icon: SquareDashedMousePointer,
-      blurb: 'Reusable page regions with screenshot, HTML, styles and provenance.'
-    }
-  ]
-}
-
 export const NAV: { label?: string; entries: NavEntry[] }[] = [
   {
     entries: [
@@ -93,7 +71,12 @@ export const NAV: { label?: string; entries: NavEntry[] }[] = [
     label: 'Library',
     entries: [
       KNOWLEDGE,
-      CAPTURED,
+      {
+        to: '/captures',
+        label: 'Captures',
+        icon: Camera,
+        blurb: 'Viewport, full-page and region screenshots with their source metadata.'
+      },
       {
         to: '/audits',
         label: 'Audits',

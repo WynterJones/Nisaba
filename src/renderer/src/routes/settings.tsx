@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Download,
   Folder,
-  Info,
   RefreshCw,
   Shield,
   ShieldCheck,
@@ -19,16 +18,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import mark from '@/assets/mark.png'
 import wynter from '@/assets/wynter.png'
 import type { AgentInstallation } from '../../../preload'
 
 function Section({
   icon: Icon,
+  art,
   title,
   description,
   children
 }: {
-  icon: React.ComponentType<{ className?: string }>
+  icon?: React.ComponentType<{ className?: string }>
+  /** Used instead of a glyph where the app's own mark says it better. */
+  art?: string
   title: string
   description: string
   children: React.ReactNode
@@ -36,8 +39,12 @@ function Section({
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary">
-          <Icon className="size-4 text-brand-bright" />
+        <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-secondary">
+          {art ? (
+            <img src={art} alt="" className="size-8 object-contain" />
+          ) : (
+            Icon && <Icon className="size-4 text-brand-bright" />
+          )}
         </span>
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
@@ -188,11 +195,11 @@ export default function Settings(): React.JSX.Element {
           {/* These are guarantees, not preferences — a switch would imply they can be turned off. */}
           <ul className="flex flex-col gap-2.5">
             {[
-              'Scripts, event handlers and entered form values are stripped from every saved HTML fragment.',
-              'Browsed pages run with no Node, no preload bridge and every permission denied by default.',
-              'Scraped text reaches an agent as data, inside a prompt that says so explicitly.',
-              'No account, no sync, and no diagnostics are collected — there is nothing to opt out of.',
-              'Nothing leaves this machine except what you send through an agent CLI you installed.'
+              'Saved HTML gets frisked. Scripts, handlers and anything you typed never make the trip.',
+              'Every page is treated as a suspect: no Node, no bridge, no permissions.',
+              'Scraped text reaches an agent as evidence, never as orders.',
+              'No account, no sync, no telemetry. Nothing to opt out of.',
+              'Nothing leaves this machine but what you hand your own agent.'
             ].map((line) => (
               <li key={line} className="flex items-start gap-2 text-sm text-muted-foreground">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />
@@ -202,7 +209,7 @@ export default function Settings(): React.JSX.Element {
           </ul>
         </Section>
 
-        <Section icon={Info} title="About" description="Nisaba — Browse. Capture. Compound.">
+        <Section art={mark} title="About" description="Nisaba — Browse. Capture. Compound.">
           <p className="text-sm text-muted-foreground">
             Version <span className="font-mono text-foreground">{version || '…'}</span>
           </p>

@@ -18,7 +18,7 @@ export default function HomeRoute(): React.JSX.Element {
   }
 
   return (
-    <Backdrop>
+    <Backdrop scene>
       <div className="flex w-full max-w-xl flex-col items-center gap-7 px-8 pb-16 text-center">
         <img src={logo} alt="Nisaba" className="h-20 select-none" draggable={false} />
 

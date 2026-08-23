@@ -17,7 +17,6 @@ import HomeRoute from '@/routes/home'
 import Jobs from '@/routes/jobs'
 import Audits from '@/routes/audits'
 import Resources from '@/routes/resources'
-import Sections from '@/routes/sections'
 import Settings from '@/routes/settings'
 import Sites from '@/routes/sites'
 import Workspaces from '@/routes/workspaces'
@@ -68,7 +67,6 @@ function Shell(): React.JSX.Element {
             <Route path="/browse" element={<Browse />} />
             <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/captures" element={<Captures />} />
-            <Route path="/sections" element={<Sections />} />
             <Route path="/sites" element={<Sites />} />
             <Route path="/elements" element={<Elements />} />
             <Route path="/design-systems" element={<DesignSystems />} />

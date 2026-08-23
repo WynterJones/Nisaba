@@ -27,6 +27,7 @@ import {
   cancelExtract,
   captureFullPage,
   captureRegion,
+  captureElement,
   captureViewport,
   detectElements,
   profileDesign,
@@ -274,10 +275,9 @@ export function BrowserToolbar(): React.JSX.Element {
               <DropdownMenuShortcut>⌘⇧4</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void startExtract()}>
+            <DropdownMenuItem onSelect={() => void captureElement()}>
               <SquareDashedMousePointer />
               Pick an element
-              <DropdownMenuShortcut>⌘⇧E</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Analyse</DropdownMenuLabel>
