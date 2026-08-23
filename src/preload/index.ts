@@ -1,9 +1,43 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { CaptureRecord, LibraryIndex, SectionRecord } from '../main/library'
+import type {
+  Annotation,
+  CaptureRecord,
+  Collection,
+  ComponentRecord,
+  DesignSystemRecord,
+  ElementRecord,
+  LibraryIndex,
+  JobEvent,
+  JobRecord,
+  ResourceRecord,
+  SectionRecord,
+  TemplateRecord,
+  WorkspaceRecord
+} from '../main/library'
 import type { SectionDraft } from '../main/extract'
 import type { AgentInstallation } from '../main/agents'
+import type { ElementCandidate } from '../main/elements'
+import type { WorkspaceProbe } from '../main/workspaces'
 
-export type { CaptureRecord, LibraryIndex, SectionRecord, SectionDraft, AgentInstallation }
+export type {
+  AgentInstallation,
+  Annotation,
+  CaptureRecord,
+  Collection,
+  ComponentRecord,
+  DesignSystemRecord,
+  ElementCandidate,
+  ElementRecord,
+  JobEvent,
+  JobRecord,
+  LibraryIndex,
+  ResourceRecord,
+  SectionDraft,
+  SectionRecord,
+  TemplateRecord,
+  WorkspaceProbe,
+  WorkspaceRecord
+}
 
 export type TabState = {
   id: string
@@ -20,6 +54,13 @@ export type Bounds = { x: number; y: number; width: number; height: number }
 
 const invoke = ipcRenderer.invoke.bind(ipcRenderer)
 
+/** Wraps `ipcRenderer.on` so every subscriber gets a disposer instead of leaking. */
+function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
+  const listener = (_e: unknown, payload: T): void => cb(payload)
+  ipcRenderer.on(channel, listener)
+  return () => ipcRenderer.off(channel, listener)
+}
+
 const api = {
   getVersion: (): Promise<string> => invoke('app:version'),
   getPlatform: (): Promise<NodeJS.Platform> => invoke('app:platform'),
@@ -28,11 +69,8 @@ const api = {
     minimize: (): Promise<void> => invoke('window:minimize'),
     maximize: (): Promise<void> => invoke('window:maximize'),
     close: (): Promise<void> => invoke('window:close'),
-    onStateChange: (cb: (maximized: boolean) => void): (() => void) => {
-      const listener = (_e: unknown, maximized: boolean): void => cb(maximized)
-      ipcRenderer.on('window:state', listener)
-      return () => ipcRenderer.off('window:state', listener)
-    }
+    onStateChange: (cb: (maximized: boolean) => void): (() => void) =>
+      subscribe('window:state', cb)
   },
 
   capture: {
@@ -48,13 +86,66 @@ const api = {
     save: (draft: SectionDraft): Promise<SectionRecord> => invoke('extract:save', draft)
   },
 
+  design: {
+    profile: (): Promise<DesignSystemRecord> => invoke('design:profile')
+  },
+
+  elements: {
+    detect: (): Promise<ElementCandidate[]> => invoke('elements:detect'),
+    save: (candidates: ElementCandidate[]): Promise<ElementRecord[]> =>
+      invoke('elements:save', candidates)
+  },
+
+  workspaces: {
+    pick: (): Promise<string | null> => invoke('workspaces:pick'),
+    probe: (root: string): Promise<WorkspaceProbe> => invoke('workspaces:probe', root),
+    create: (input: Omit<WorkspaceRecord, 'id' | 'createdAt'>): Promise<WorkspaceRecord> =>
+      invoke('workspaces:create', input),
+    reveal: (root: string): Promise<void> => invoke('workspaces:reveal', root)
+  },
+
+  jobs: {
+    preview: (input: {
+      workspaceId: string
+      profile: string
+      sourceIds: string[]
+      extra: string
+      kind: 'component' | 'template'
+    }): Promise<{ prompt: string; sourceDir: string; root: string; agent: string }> =>
+      invoke('jobs:preview', input),
+    run: (input: {
+      workspaceId: string
+      profile: string
+      sourceIds: string[]
+      extra: string
+      kind: 'component' | 'template'
+      binary: string
+      name: string
+    }): Promise<JobRecord> => invoke('jobs:run', input),
+    cancel: (id: string): Promise<void> => invoke('jobs:cancel', id),
+    open: (dir: string, file?: string): Promise<void> => invoke('jobs:open', dir, file),
+    reveal: (dir: string, file: string): Promise<void> => invoke('jobs:reveal', dir, file),
+    readFile: (dir: string, file: string): Promise<string> => invoke('jobs:read-file', dir, file),
+    onEvent: (cb: (payload: { id: string; event: JobEvent }) => void): (() => void) =>
+      subscribe('jobs:event', cb),
+    onDone: (cb: (payload: { id: string; status: JobRecord['status'] }) => void): (() => void) =>
+      subscribe('jobs:done', cb)
+  },
+
   library: {
     read: (): Promise<LibraryIndex> => invoke('library:read'),
     root: (): Promise<string> => invoke('library:root'),
-    remove: (kind: 'captures' | 'sections', id: string): Promise<void> =>
-      invoke('library:delete', kind, id),
+    add: <T>(kind: Collection, record: T): Promise<T> => invoke('library:add', kind, record),
+    patch: (kind: Collection, id: string, patch: object): Promise<void> =>
+      invoke('library:patch', kind, id, patch),
+    remove: (kind: Collection, id: string): Promise<void> => invoke('library:delete', kind, id),
     reveal: (file: string): Promise<void> => invoke('library:reveal', file),
-    /** Library images are served over the app-only nisaba:// scheme. */
+    saveImage: (dataUrl: string, suggested: string): Promise<string | null> =>
+      invoke('library:save-image', dataUrl, suggested),
+    export: (ids: string[] | null): Promise<{ path: string; files: number } | null> =>
+      invoke('library:export', ids),
+    import: (): Promise<{ records: number; files: number } | null> => invoke('library:import'),
+    /** Library assets are served over the app-only nisaba:// scheme. */
     url: (file: string): string => `nisaba://library/${file}`
   },
 
@@ -74,11 +165,8 @@ const api = {
     reload: (): Promise<void> => invoke('browser:reload'),
     stop: (): Promise<void> => invoke('browser:stop'),
     openExternal: (url: string): Promise<void> => invoke('browser:open-external', url),
-    onTabUpdated: (cb: (patch: Partial<TabState> & { id: string }) => void): (() => void) => {
-      const listener = (_e: unknown, patch: Partial<TabState> & { id: string }): void => cb(patch)
-      ipcRenderer.on('browser:tab-updated', listener)
-      return () => ipcRenderer.off('browser:tab-updated', listener)
-    }
+    onTabUpdated: (cb: (patch: Partial<TabState> & { id: string }) => void): (() => void) =>
+      subscribe('browser:tab-updated', cb)
   }
 }
 

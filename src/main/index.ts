@@ -1,17 +1,26 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, dialog, ipcMain } from 'electron'
 import { join } from 'path'
 import { autoUpdater } from 'electron-updater'
 import { registerBrowserIpc } from './browser'
 import { registerCaptureIpc } from './capture'
 import { registerExtractIpc } from './extract'
 import { registerAgentIpc } from './agents'
+import { registerDesignIpc } from './design'
+import { registerElementIpc } from './elements'
+import { registerWorkspaceIpc } from './workspaces'
+import { registerJobIpc, reconcileJobs } from './jobs'
+import { registerExportIpc } from './exporter'
+import { writeFile } from 'fs/promises'
 import {
+  addRecord,
   libraryRoot,
+  patchRecord,
   readIndex,
   registerLibraryProtocol,
   registerLibraryProtocolScheme,
   removeRecord,
-  revealRecord
+  revealRecord,
+  type Collection
 } from './library'
 
 registerLibraryProtocolScheme()
@@ -76,13 +85,37 @@ app.whenReady().then(() => {
   registerCaptureIpc()
   registerExtractIpc()
   registerAgentIpc()
+  registerDesignIpc()
+  registerElementIpc()
+  registerWorkspaceIpc()
+  registerJobIpc()
+  registerExportIpc()
+  void reconcileJobs()
 
   ipcMain.handle('library:read', () => readIndex())
   ipcMain.handle('library:root', () => libraryRoot())
-  ipcMain.handle('library:delete', (_e, kind: 'captures' | 'sections', id: string) =>
-    removeRecord(kind, id)
+  ipcMain.handle('library:delete', (_e, kind: Collection, id: string) => removeRecord(kind, id))
+  ipcMain.handle('library:patch', (_e, kind: Collection, id: string, patch: object) =>
+    patchRecord(kind, id, patch)
   )
   ipcMain.handle('library:reveal', (_e, file: string) => revealRecord(file))
+  ipcMain.handle('library:add', (_e, kind: Collection, record: unknown) =>
+    addRecord(kind, record as Parameters<typeof addRecord>[1])
+  )
+
+  /** Saves a flattened annotated image wherever the user points, leaving the original intact. */
+  ipcMain.handle('library:save-image', async (e, dataUrl: string, suggested: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const result = await dialog.showSaveDialog(win!, {
+      title: 'Export image',
+      defaultPath: suggested,
+      filters: [{ name: 'PNG image', extensions: ['png'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+    await writeFile(result.filePath, Buffer.from(dataUrl.split(',')[1], 'base64'))
+    shell.showItemInFolder(result.filePath)
+    return result.filePath
+  })
 
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('app:platform', () => process.platform)

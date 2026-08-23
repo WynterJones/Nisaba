@@ -1,6 +1,6 @@
 import { ipcMain, type WebContentsView } from 'electron'
 import { activeView } from './browser'
-import { addCapture, type CaptureRecord } from './library'
+import { addRecord, newId, writeImage, type CaptureRecord } from './library'
 
 /** Full-page shots beyond this get clipped rather than exhausting memory. */
 const MAX_FULLPAGE_HEIGHT = 20000
@@ -164,11 +164,15 @@ export function registerCaptureIpc(): void {
     shot: Shot,
     kind: CaptureRecord['kind']
   ): Promise<CaptureRecord> => {
-    const record = await addCapture(shot.png, {
+    const id = newId()
+    const record = await addRecord('captures', {
+      id,
+      createdAt: Date.now(),
       kind,
       ...meta(view),
       width: shot.width,
-      height: shot.height
+      height: shot.height,
+      file: await writeImage('captures', id, shot.png)
     })
     flash(view, `Saved to Captures · ${kind}`)
     return record

@@ -1,0 +1,265 @@
+import { useState } from 'react'
+import { Copy, ExternalLink, FolderOpen, Palette, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { LibraryFrame, timeAgo } from '@/components/library/frame'
+import { useLibrary } from '@/store'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { DesignSystemRecord } from '../../../preload'
+
+function TokenList({ label, values }: { label: string; values: string[] }): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        {label}
+      </span>
+      {values.length === 0 ? (
+        <span className="text-xs text-muted-foreground">None observed.</span>
+      ) : (
+        <div className="flex flex-wrap gap-1">
+          {values.map((v) => (
+            <code
+              key={v}
+              className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+            >
+              {v}
+            </code>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Detail({
+  record,
+  onClose
+}: {
+  record: DesignSystemRecord
+  onClose: () => void
+}): React.JSX.Element {
+  const copy = (text: string, what: string): void => {
+    void navigator.clipboard.writeText(text)
+    toast.success(`${what} copied`)
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[min(880px,92vw)]">
+        <DialogHeader>
+          <DialogTitle>{record.name}</DialogTitle>
+          <DialogDescription>
+            Measured from {record.url}. Values marked <em>inferred</em> are Nisaba&apos;s reading of
+            what it observed, not a claim about the site&apos;s real design system.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs defaultValue="tokens">
+          <TabsList>
+            <TabsTrigger value="tokens">Tokens</TabsTrigger>
+            <TabsTrigger value="type">Type scale</TabsTrigger>
+            <TabsTrigger value="md">design.md</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tokens">
+            <ScrollArea className="h-[52vh]">
+              <div className="flex flex-col gap-5 pr-3">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    Colours
+                  </span>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2">
+                    {record.tokens.colors.map((c, i) => (
+                      <button
+                        key={`${c.value}-${i}`}
+                        onClick={() => copy(c.value, 'Colour')}
+                        className="flex items-center gap-2 rounded-lg border border-border p-2 text-left transition-colors hover:border-brand/50"
+                      >
+                        <span
+                          style={{ background: c.value }}
+                          className="size-8 shrink-0 rounded border border-white/10"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-mono text-[10px]">{c.value}</span>
+                          <span className="block truncate text-[10px] text-muted-foreground">
+                            {c.role} <em>(inferred)</em>
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <TokenList label="Spacing scale (inferred)" values={record.tokens.spacing} />
+                <TokenList label="Radii" values={record.tokens.radii} />
+                <TokenList label="Shadows" values={record.tokens.shadows} />
+                <TokenList label="Breakpoints" values={record.tokens.breakpoints} />
+                <TokenList
+                  label={`CSS custom properties (${Object.keys(record.tokens.variables).length})`}
+                  values={Object.entries(record.tokens.variables)
+                    .slice(0, 60)
+                    .map(([k, v]) => `${k}: ${v}`)}
+                />
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="type">
+            <ScrollArea className="h-[52vh]">
+              <div className="flex flex-col gap-3 pr-3">
+                {record.typeScale.map((t) => (
+                  <div
+                    key={t.tag}
+                    className="flex items-baseline gap-3 rounded-lg border border-border p-3"
+                  >
+                    <code className="w-14 shrink-0 font-mono text-xs text-brand-bright">
+                      {t.tag}
+                    </code>
+                    <span
+                      className="min-w-0 flex-1 truncate"
+                      style={{
+                        fontSize: t.size,
+                        fontWeight: Number(t.weight) || 400,
+                        lineHeight: t.lineHeight,
+                        fontFamily: t.family
+                      }}
+                    >
+                      The quick brown fox
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                      {t.size} / {t.weight} / {t.lineHeight}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="md">
+            <ScrollArea className="h-[52vh]">
+              <pre className="whitespace-pre-wrap rounded-lg border border-border bg-secondary/30 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                {record.designMd}
+              </pre>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => copy(record.designMd, 'design.md')}>
+            <Copy className="size-4" />
+            Copy design.md
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => window.api.library.reveal(record.file.replace(/\.png$/, '.md'))}
+          >
+            <FolderOpen className="size-4" />
+            Reveal files
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export default function DesignSystems(): React.JSX.Element {
+  const { designSystems, remove } = useLibrary()
+  const [open, setOpen] = useState<DesignSystemRecord | null>(null)
+
+  return (
+    <>
+      <LibraryFrame
+        icon={Palette}
+        title="Design Systems"
+        items={designSystems}
+        search={(d) => `${d.name} ${d.host} ${d.url}`}
+        emptyTitle="No design profiles yet"
+        emptyBlurb="Open a page in Browse and run Profile this page. Nisaba measures the colours, type, spacing, radii, shadows and breakpoints it actually uses, and writes an editable design.md and tokens.json."
+      >
+        {(rows) => (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(19rem,1fr))] gap-4 p-5">
+            {rows.map((record) => (
+              <article
+                key={record.id}
+                className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-brand/50"
+              >
+                <button
+                  onClick={() => setOpen(record)}
+                  className="block max-h-40 overflow-hidden bg-secondary/40"
+                >
+                  <img
+                    src={window.api.library.url(record.file)}
+                    alt={record.name}
+                    loading="lazy"
+                    className="w-full object-cover object-top"
+                  />
+                </button>
+
+                <div className="flex flex-col gap-2 border-t border-border p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{record.host}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {record.tokens.colors.length} colours · {record.typeScale.length} type steps
+                        · {timeAgo(record.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Open source page"
+                        onClick={() => window.api.browser.openExternal(record.url)}
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Delete"
+                        className="hover:text-destructive"
+                        onClick={() => void remove('designSystems', record.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {record.tokens.colors.slice(0, 8).map((c, i) => (
+                      <span
+                        key={`${c.value}-${i}`}
+                        title={`${c.value} — ${c.role}`}
+                        style={{ background: c.value }}
+                        className="size-5 rounded border border-white/10"
+                      />
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {record.tokens.fonts.slice(0, 2).map((f) => (
+                      <Badge key={f.family} variant="secondary" className="text-[10px] font-normal">
+                        {f.family}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </LibraryFrame>
+
+      {open && <Detail record={open} onClose={() => setOpen(null)} />}
+    </>
+  )
+}

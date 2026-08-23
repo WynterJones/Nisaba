@@ -47,28 +47,29 @@ in your stack.
 
 ## Status
 
-Nisaba is being built in phases. The core loop — browse, capture, extract, organize — works today.
+The whole loop works: browse, capture, extract, profile, organize, convert, and export.
 
 **Working**
 
 - [x] Multi-tab browsing in isolated `WebContentsView`s with default-deny permissions
 - [x] Capture: visible viewport, full scrollable page (via CDP, beyond the viewport), dragged region, picked element
 - [x] Extract: hover-to-select overlay with arrow-key DOM navigation, returning a robust selector, sanitized HTML, computed styles, CSS custom properties, fonts, palette, assets and accessibility metadata
+- [x] Annotation editor — rectangles, ellipses, arrows, lines, highlight, blur, text and numbered callouts, stored as editable vectors so the original PNG is never touched, and flattenable to a new PNG
+- [x] Design profiling — measures the colours, type scale, spacing, radii, shadows, breakpoints and `:root` variables a page actually uses, and writes `design.md` and `tokens.json`
+- [x] Element Style Matrix — finds buttons, inputs, cards, badges and more, collapses visually identical instances, and screenshots each declared interaction state via CDP `forcePseudoState`
 - [x] Technology detection with a confidence score and the evidence behind it
-- [x] Library on disk: Captures, Sections, Sites and Bookmarks, with search, delete and reveal-in-Finder
-- [x] Agent CLI detection for Claude Code and Codex, and a resolved-prompt preview before any run
-- [x] Keyboard shortcuts, command palette, single-instance locking
+- [x] Library on disk: Captures, Sections, Elements, Design Systems, Resources, Sites and Bookmarks, with search, delete and reveal-in-Finder
+- [x] Workspaces — a folder an agent may write into, with a writability and framework probe
+- [x] Agent jobs — Claude Code or Codex spawned in the workspace with a layered prompt, streaming logs, cancel, produced-file detection and a Component record with full lineage
+- [x] Portable export and import that preserves IDs and relationships
+- [x] Keyboard shortcuts, command palette, single-instance locking, crashed-job reconciliation
 
 **Not yet**
 
-- [ ] Annotation editor for captures
-- [ ] Design system extraction and `design.md` generation
-- [ ] Element Style Matrix, Components, Templates, Resources
-- [ ] Running agent jobs and verifying their output
-- [ ] SQLite, workspaces and portable export
-
-Screens that are specified but not implemented say so plainly in the app rather than showing a
-fake empty state.
+- [ ] Local preview server for generated output, and side-by-side visual comparison
+- [ ] Lint/build/test verification commands and a verified badge
+- [ ] Perceptual hashing and visual similarity search
+- [ ] SQLite (the index is one JSON file today)
 
 <img src="docs/library.png" alt="The Captures library with real screenshots of Vercel, Stripe and Linear" width="100%">
 
@@ -101,14 +102,19 @@ npm run dev
 ```text
 src/
   main/
-    browser.ts    Tab lifecycle and isolated WebContentsViews
-    capture.ts    Viewport, full-page (CDP) and region screenshots
-    extract.ts    The in-page selection overlay and artifact collector
-    library.ts    On-disk index, the nisaba:// asset protocol
-    agents.ts     CLI discovery and version probing
-  preload/        The narrow typed bridge; the only surface the app UI can call
-  renderer/       React + Tailwind + shadcn/ui application UI
-_PLANS/           Product requirements and design references
+    browser.ts     Tab lifecycle and isolated WebContentsViews
+    capture.ts     Viewport, full-page (CDP) and region screenshots
+    extract.ts     The in-page selection overlay and artifact collector
+    design.ts      Whole-page token measurement and design.md generation
+    elements.ts    Primitive detection and per-state capture
+    workspaces.ts  Folder selection, probing and the write boundary
+    jobs.ts        Prompt resolution, agent spawning, output detection
+    exporter.ts    Portable library export and import
+    library.ts     On-disk index, the nisaba:// asset protocol
+    agents.ts      CLI discovery and version probing
+  preload/         The narrow typed bridge; the only surface the app UI can call
+  renderer/        React + Tailwind + shadcn/ui application UI
+_PLANS/            Product requirements and design references
 ```
 
 ## Architecture
@@ -123,7 +129,9 @@ Three trust levels, and remote pages sit at the bottom of all of them:
   permission denied by default.
 
 Text scraped from a webpage is treated as **data, never instructions** — including when it is
-packaged up and handed to an agent.
+packaged up and handed to an agent. Every job runs with its workspace folder as the working
+directory, and the resolved prompt opens by telling the agent that everything in the source package
+is untrusted third-party content.
 
 ## Privacy
 

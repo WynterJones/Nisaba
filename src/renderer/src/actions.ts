@@ -62,3 +62,50 @@ export async function saveSelection(): Promise<void> {
     fail(error)
   }
 }
+
+/** Profiles the whole page into an editable design pack. */
+export async function profileDesign(): Promise<void> {
+  const id = toast.loading('Reading the page design…')
+  try {
+    const record = await window.api.design.profile()
+    await useLibrary.getState().refresh()
+    toast.success('Design profile saved', { id, description: record.name })
+  } catch (error) {
+    toast.dismiss(id)
+    fail(error)
+  }
+}
+
+export async function detectElements(): Promise<import('../../preload').ElementCandidate[]> {
+  try {
+    return await window.api.elements.detect()
+  } catch (error) {
+    fail(error)
+    return []
+  }
+}
+
+export async function saveElements(
+  candidates: import('../../preload').ElementCandidate[]
+): Promise<void> {
+  const id = toast.loading(`Capturing ${candidates.length} element(s)…`)
+  try {
+    const saved = await window.api.elements.save(candidates)
+    await useLibrary.getState().refresh()
+    toast.success(`Saved ${saved.length} element${saved.length === 1 ? '' : 's'}`, { id })
+  } catch (error) {
+    toast.dismiss(id)
+    fail(error)
+  }
+}
+
+export function classifyResource(url: string): import('../../preload').ResourceRecord['type'] {
+  const value = url.toLowerCase()
+  if (/github\.com|gitlab\.com|bitbucket/.test(value)) return 'repository'
+  if (/icon|lucide|heroicons|phosphor|feather|fontawesome|iconify/.test(value)) return 'icons'
+  if (/font|typekit|typography|typeface/.test(value)) return 'fonts'
+  if (/ui\.|shadcn|radix|chakra|mantine|headlessui|daisyui|component/.test(value)) return 'ui-kit'
+  if (/dribbble|behance|awwwards|land-book|godly|refero|mobbin/.test(value)) return 'inspiration'
+  if (/figma|framer|webflow|linear|notion|vercel/.test(value)) return 'tool'
+  return 'other'
+}

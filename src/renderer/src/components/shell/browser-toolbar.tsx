@@ -12,6 +12,8 @@ import {
   Lock,
   PanelRight,
   RotateCw,
+  Blocks,
+  Palette,
   Sparkles,
   SquareDashedMousePointer,
   TriangleAlert,
@@ -22,8 +24,11 @@ import {
   captureFullPage,
   captureRegion,
   captureViewport,
+  detectElements,
+  profileDesign,
   startExtract
 } from '@/actions'
+import { ElementPicker } from '@/components/shell/element-picker'
 import { useActiveTab, useApp } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -37,6 +42,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
+import type { ElementCandidate } from '../../../../preload'
 
 /** Bare domains and anything with a scheme are URLs; everything else is a web search. */
 export function toUrl(input: string): string {
@@ -126,12 +132,26 @@ const toolClass = (active: boolean): string =>
 export function BrowserToolbar(): React.JSX.Element {
   const tab = useActiveTab()
   const { tool, setTool, picking, selection, inspectorOpen, toggleInspector, setOverlay } = useApp()
+  const [candidates, setCandidates] = useState<ElementCandidate[] | null>(null)
+  const [scanning, setScanning] = useState(false)
   const disabled = !tab
 
   const openMenu = (open: boolean): void => setOverlay(open)
 
+  const scan = async (): Promise<void> => {
+    setScanning(true)
+    const found = await detectElements()
+    setScanning(false)
+    if (found.length === 0) return
+    setOverlay(true)
+    setCandidates(found)
+  }
+
   return (
     <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-border bg-background px-3">
+      {candidates && (
+        <ElementPicker candidates={candidates} onClose={() => setCandidates(null)} />
+      )}
       <div className="flex items-center">
         <Button
           variant="ghost"
@@ -170,8 +190,12 @@ export function BrowserToolbar(): React.JSX.Element {
       <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border bg-secondary/40 p-0.5">
         <DropdownMenu onOpenChange={openMenu}>
           <DropdownMenuTrigger asChild>
-            <button disabled={disabled} className={toolClass(false)} title="Capture this page">
-              <Camera className="size-4" />
+            <button
+              disabled={disabled || scanning}
+              className={toolClass(false)}
+              title="Capture or analyse this page"
+            >
+              {scanning ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
               Capture
               <ChevronDown className="size-3 opacity-60" />
             </button>
@@ -198,6 +222,16 @@ export function BrowserToolbar(): React.JSX.Element {
               <SquareDashedMousePointer />
               Pick an element
               <DropdownMenuShortcut>⌘⇧E</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Analyse</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => void scan()}>
+              <Blocks />
+              Detect elements
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void profileDesign()}>
+              <Palette />
+              Profile this page
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

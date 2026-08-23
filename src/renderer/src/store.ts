@@ -1,6 +1,19 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CaptureRecord, SectionDraft, SectionRecord, TabState } from '../../preload'
+import type {
+  CaptureRecord,
+  Collection,
+  ComponentRecord,
+  DesignSystemRecord,
+  ElementRecord,
+  JobRecord,
+  ResourceRecord,
+  SectionDraft,
+  SectionRecord,
+  TabState,
+  TemplateRecord,
+  WorkspaceRecord
+} from '../../preload'
 
 export type Tool = 'capture' | 'extract' | 'convert' | null
 
@@ -9,14 +22,6 @@ export type Bookmark = {
   url: string
   title: string
   addedAt: number
-}
-
-export type Job = {
-  id: string
-  agent: string
-  label: string
-  progress: number
-  status: 'running' | 'done' | 'failed'
 }
 
 let seq = 0
@@ -34,7 +39,6 @@ type AppState = {
   inspectorOpen: boolean
   sidebarCollapsed: boolean
   jobsOpen: boolean
-  jobs: Job[]
 
   newTab: (url?: string) => string
   closeTab: (id: string) => void
@@ -46,7 +50,6 @@ type AppState = {
   toggleInspector: () => void
   toggleSidebar: () => void
   setJobsOpen: (open: boolean) => void
-  dismissJob: (id: string) => void
   /** Native views paint above all renderer HTML, so modals must hide them while open. */
   setOverlay: (open: boolean) => void
 }
@@ -71,7 +74,6 @@ export const useApp = create<AppState>((set, get) => ({
   inspectorOpen: true,
   sidebarCollapsed: false,
   jobsOpen: true,
-  jobs: [],
 
   newTab: (url = '') => {
     const id = nextId()
@@ -104,7 +106,6 @@ export const useApp = create<AppState>((set, get) => ({
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setJobsOpen: (jobsOpen) => set({ jobsOpen }),
-  dismissJob: (id) => set((s) => ({ jobs: s.jobs.filter((j) => j.id !== id) })),
 
   setOverlay: (open) => {
     const { activeTabId } = get()
@@ -169,19 +170,33 @@ export const useBookmarks = create<BookmarkState>()(
 type LibraryState = {
   captures: CaptureRecord[]
   sections: SectionRecord[]
+  elements: ElementRecord[]
+  designSystems: DesignSystemRecord[]
+  resources: ResourceRecord[]
+  workspaces: WorkspaceRecord[]
+  jobs: JobRecord[]
+  components: ComponentRecord[]
+  templates: TemplateRecord[]
   loaded: boolean
   refresh: () => Promise<void>
-  remove: (kind: 'captures' | 'sections', id: string) => Promise<void>
+  remove: (kind: Collection, id: string) => Promise<void>
 }
 
 export const useLibrary = create<LibraryState>((set, get) => ({
   captures: [],
   sections: [],
+  elements: [],
+  designSystems: [],
+  resources: [],
+  workspaces: [],
+  jobs: [],
+  components: [],
+  templates: [],
   loaded: false,
 
   refresh: async () => {
     const index = await window.api.library.read()
-    set({ captures: index.captures, sections: index.sections, loaded: true })
+    set({ ...index, loaded: true })
   },
 
   remove: async (kind, id) => {

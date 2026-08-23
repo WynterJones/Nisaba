@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router'
-import { Camera, ExternalLink, FolderOpen, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Camera, ExternalLink, FolderOpen, PenLine, Trash2 } from 'lucide-react'
+import { Annotator } from '@/components/library/annotator'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { cn } from '@/lib/utils'
 import { useApp, useLibrary } from '@/store'
@@ -15,10 +17,12 @@ const KIND_LABEL: Record<CaptureRecord['kind'], string> = {
 
 function RowActions({
   record,
-  floating
+  floating,
+  onAnnotate
 }: {
   record: CaptureRecord
   floating?: boolean
+  onAnnotate: (record: CaptureRecord) => void
 }): React.JSX.Element {
   const remove = useLibrary((s) => s.remove)
   return (
@@ -29,6 +33,14 @@ function RowActions({
           'absolute right-2 top-2 rounded-lg border border-border bg-background/90 p-0.5 backdrop-blur'
       )}
     >
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        title="Annotate"
+        onClick={() => onAnnotate(record)}
+      >
+        <PenLine className="size-3.5" />
+      </Button>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -61,7 +73,18 @@ function RowActions({
 export default function Captures(): React.JSX.Element {
   const captures = useLibrary((s) => s.captures)
   const newTab = useApp((s) => s.newTab)
+  const setOverlay = useApp((s) => s.setOverlay)
   const navigate = useNavigate()
+  const [annotating, setAnnotating] = useState<CaptureRecord | null>(null)
+
+  const openAnnotator = (record: CaptureRecord): void => {
+    setOverlay(true)
+    setAnnotating(record)
+  }
+  const closeAnnotator = (): void => {
+    setOverlay(false)
+    setAnnotating(null)
+  }
 
   const revisit = (url: string): void => {
     newTab(url)
@@ -69,6 +92,13 @@ export default function Captures(): React.JSX.Element {
   }
 
   return (
+    <>
+      {annotating && (
+        <Annotator
+          capture={captures.find((c) => c.id === annotating.id) ?? annotating}
+          onClose={closeAnnotator}
+        />
+      )}
     <LibraryFrame
       icon={Camera}
       title="Captures"
@@ -85,7 +115,7 @@ export default function Captures(): React.JSX.Element {
                 key={record.id}
                 className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-brand/50"
               >
-                <RowActions record={record} floating />
+                <RowActions record={record} floating onAnnotate={openAnnotator} />
                 <button
                   onClick={() => revisit(record.url)}
                   title="Reopen the source page"
@@ -103,6 +133,7 @@ export default function Captures(): React.JSX.Element {
                   <p className="truncate text-xs text-muted-foreground">
                     {record.host} · {KIND_LABEL[record.kind]} · {record.width}×{record.height} ·{' '}
                     {timeAgo(record.createdAt)}
+                    {record.annotations?.length ? ` · ${record.annotations.length} note(s)` : ''}
                   </p>
                 </figcaption>
               </figure>
@@ -131,12 +162,13 @@ export default function Captures(): React.JSX.Element {
                 <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
                   {timeAgo(record.createdAt)}
                 </span>
-                <RowActions record={record} />
+                <RowActions record={record} onAnnotate={openAnnotator} />
               </li>
             ))}
           </ul>
         )
       }
     </LibraryFrame>
+    </>
   )
 }

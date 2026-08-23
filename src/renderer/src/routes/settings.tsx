@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Bot, CheckCircle2, Folder, Info, RefreshCw, Shield, XCircle } from 'lucide-react'
+import {
+  Bot,
+  CheckCircle2,
+  Download,
+  Folder,
+  Info,
+  RefreshCw,
+  Shield,
+  Upload,
+  XCircle
+} from 'lucide-react'
+import { toast } from 'sonner'
 import { useLibrary } from '@/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,7 +52,29 @@ export default function Settings(): React.JSX.Element {
   const [version, setVersion] = useState('')
   const [root, setRoot] = useState('')
   const [agents, setAgents] = useState<AgentInstallation[] | null>(null)
-  const { captures, sections } = useLibrary()
+  const { captures, sections, elements, designSystems, refresh } = useLibrary()
+
+  const exportAll = async (): Promise<void> => {
+    try {
+      const result = await window.api.library.export(null)
+      if (result) toast.success('Library exported', { description: `${result.files} files written` })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  const importFolder = async (): Promise<void> => {
+    try {
+      const result = await window.api.library.import()
+      if (!result) return
+      await refresh()
+      toast.success('Library imported', {
+        description: `${result.records} records, ${result.files} files restored`
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
+    }
+  }
 
   const detect = (): void => {
     setAgents(null)
@@ -78,8 +111,27 @@ export default function Settings(): React.JSX.Element {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {captures.length} captures · {sections.length} sections. Choosing a custom folder
-              arrives with workspaces.
+              {captures.length} captures · {sections.length} sections · {elements.length} elements ·{' '}
+              {designSystems.length} design profiles.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs text-muted-foreground">Portable copy</Label>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={exportAll}>
+                <Download className="size-3.5" />
+                Export library
+              </Button>
+              <Button variant="secondary" size="sm" onClick={importFolder}>
+                <Upload className="size-3.5" />
+                Import
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Exports a plain folder — <code className="font-mono">library.json</code> plus the
+              images it points at. IDs are preserved, so re-importing updates rather than
+              duplicates.
             </p>
           </div>
         </Section>

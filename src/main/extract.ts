@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { activeView } from './browser'
 import { captureRect, pageMeta } from './capture'
-import { addSection, type SectionRecord } from './library'
+import { addRecord, newId, writeImage, type SectionRecord } from './library'
 
 export type SectionDraft = Omit<SectionRecord, 'id' | 'file' | 'createdAt'> & {
   preview: string
@@ -285,6 +285,12 @@ export function registerExtractIpc(): void {
     const png = await captureRect(draft.rect)
     if (!png) throw new Error('Could not capture the selection')
     const { preview: _preview, ...record } = draft
-    return addSection(png, record)
+    const id = newId()
+    return addRecord('sections', {
+      ...record,
+      id,
+      createdAt: Date.now(),
+      file: await writeImage('sections', id, png)
+    })
   })
 }

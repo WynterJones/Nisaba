@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router'
 import { captureFullPage, captureRegion, captureViewport, startExtract } from '@/actions'
-import { NAV_ITEMS } from '@/nav'
 import { useApp, useLibrary } from '@/store'
 import { CommandPalette } from '@/components/shell/command-palette'
 import { JobsDrawer } from '@/components/shell/jobs-drawer'
@@ -10,16 +9,18 @@ import { TitleBar } from '@/components/shell/title-bar'
 import Bookmarks from '@/routes/bookmarks'
 import Browse from '@/routes/browse'
 import Captures from '@/routes/captures'
+import { Components, Templates } from '@/routes/components'
+import DesignSystems from '@/routes/design-systems'
+import Elements from '@/routes/elements'
 import HomeRoute from '@/routes/home'
-import LibraryRoute from '@/routes/library'
+import Jobs from '@/routes/jobs'
+import Resources from '@/routes/resources'
 import Sections from '@/routes/sections'
 import Settings from '@/routes/settings'
 import Sites from '@/routes/sites'
+import Workspaces from '@/routes/workspaces'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-
-const BUILT = ['/', '/browse', '/settings', '/bookmarks', '/captures', '/sections', '/sites']
-const PLACEHOLDER_ITEMS = NAV_ITEMS.filter((item) => !BUILT.includes(item.to))
 
 /** ⌘⇧2/3/4 capture, ⌘⇧E extracts — the same handlers the toolbar menu calls. */
 function useShortcuts(): void {
@@ -67,10 +68,14 @@ function Shell(): React.JSX.Element {
             <Route path="/captures" element={<Captures />} />
             <Route path="/sections" element={<Sections />} />
             <Route path="/sites" element={<Sites />} />
+            <Route path="/elements" element={<Elements />} />
+            <Route path="/design-systems" element={<DesignSystems />} />
+            <Route path="/components" element={<Components />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/resources" element={<Resources />} />
+            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/workspaces" element={<Workspaces />} />
             <Route path="/settings" element={<Settings />} />
-            {PLACEHOLDER_ITEMS.map((item) => (
-              <Route key={item.to} path={item.to} element={<LibraryRoute item={item} />} />
-            ))}
           </Routes>
         </main>
         <JobsDrawer />
