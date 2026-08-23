@@ -86,8 +86,10 @@ const api = {
   },
 
   capture: {
-    viewport: (): Promise<CaptureRecord | null> => invoke('capture:viewport'),
-    fullPage: (): Promise<CaptureRecord | null> => invoke('capture:fullpage'),
+    viewport: (preset = 'current'): Promise<CaptureRecord | null> =>
+      invoke('capture:viewport', preset),
+    fullPage: (preset = 'current'): Promise<CaptureRecord | null> =>
+      invoke('capture:fullpage', preset),
     region: (): Promise<CaptureRecord | null> => invoke('capture:region'),
     rect: (rect: Bounds): Promise<CaptureRecord | null> => invoke('capture:rect', rect)
   },
@@ -218,6 +220,8 @@ const api = {
     reload: (): Promise<void> => invoke('browser:reload'),
     stop: (): Promise<void> => invoke('browser:stop'),
     openExternal: (url: string): Promise<void> => invoke('browser:open-external', url),
+    flash: (text: string, tone: 'info' | 'error' = 'info'): Promise<void> =>
+      invoke('browser:flash', text, tone),
     onTabUpdated: (cb: (patch: Partial<TabState> & { id: string }) => void): (() => void) =>
       subscribe('browser:tab-updated', cb)
   }

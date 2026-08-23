@@ -11,6 +11,8 @@ type Base = { id: string; createdAt: number }
 export type CaptureRecord = Base & {
   /** 64-bit dHash of `file`, for similarity search. */
   phash?: string | null
+  /** Preset the page was narrowed to for the shot, if any. */
+  viewport?: string | null
   /** Free-form labels for organising and filtering. */
   tags?: string[]
   kind: 'viewport' | 'fullpage' | 'region' | 'element'

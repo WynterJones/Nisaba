@@ -15,6 +15,8 @@ type Bounds = { x: number; y: number; width: number; height: number }
 
 const views = new Map<string, WebContentsView>()
 let activeId: string | null = null
+/** Menus and dialogs hide the page without changing which tab is current. */
+let hidden = false
 let lastBounds: Bounds = { x: 0, y: 0, width: 0, height: 0 }
 
 /** Remote pages get their own partition and no preload — they can never reach app IPC. */
@@ -71,9 +73,34 @@ function createView(win: BrowserWindow, id: string): WebContentsView {
   return view
 }
 
-/** The remote view the user is currently looking at, if any. */
+/** The current tab's view, whether or not a menu is covering it. */
 export function activeView(): WebContentsView | undefined {
   return activeId ? views.get(activeId) : undefined
+}
+
+/**
+ * Makes the page visible long enough to be photographed, then restores it. A menu or dialog
+ * may be covering it when a capture is triggered, and a hidden view composites to nothing.
+ */
+export async function withVisibleView<T>(fn: (view: WebContentsView) => Promise<T>): Promise<T> {
+  const view = activeView()
+  if (!view) throw new Error('Open a page before capturing')
+
+  const wasHidden = hidden
+  // Force visibility rather than trusting the flag: a view can also be unpainted because it
+  // was added to the window before it had bounds, and capturePage has no surface either way.
+  hidden = false
+  view.setVisible(true)
+  await new Promise((resolve) => setTimeout(resolve, wasHidden ? 120 : 40))
+
+  try {
+    return await fn(view)
+  } finally {
+    if (wasHidden) {
+      hidden = true
+      view.setVisible(false)
+    }
+  }
 }
 
 /** Bounds of the page area in window coordinates — needed to place capture overlays. */
@@ -83,7 +110,7 @@ export function viewportBounds(): Bounds {
 
 function layout(win: BrowserWindow): void {
   for (const [id, view] of views) {
-    view.setVisible(id === activeId)
+    view.setVisible(!hidden && id === activeId)
     if (id === activeId) view.setBounds(lastBounds)
   }
   void win
@@ -99,12 +126,14 @@ export function registerBrowserIpc(win: BrowserWindow): void {
     const view = views.get(id) ?? createView(win, id)
     if (!win.contentView.children.includes(view)) win.contentView.addChildView(view)
     activeId = id
+    hidden = false
     layout(win)
     if (url && view.webContents.getURL() !== url) void view.webContents.loadURL(url)
   })
 
   handle('browser:activate', (id: string) => {
     activeId = id
+    hidden = false
     layout(win)
   })
 
@@ -130,7 +159,7 @@ export function registerBrowserIpc(win: BrowserWindow): void {
 
   /** Hide every remote view — used when the app shows a library route instead of the browser. */
   handle('browser:hide-all', () => {
-    activeId = null
+    hidden = true
     layout(win)
   })
 
@@ -140,4 +169,34 @@ export function registerBrowserIpc(win: BrowserWindow): void {
   handle('browser:reload', () => active()?.webContents.reload())
   handle('browser:stop', () => active()?.webContents.stop())
   handle('browser:open-external', (url: string) => shell.openExternal(url))
+
+  /** Shows a message inside the page — the only place a user looking at a page will see it. */
+  handle('browser:flash', (text: string, tone: 'info' | 'error') => {
+    const view = activeView()
+    if (!view) return
+    const background = tone === 'error' ? '#7f1d2e' : '#7928db'
+    const style = [
+      'position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-8px)',
+      'z-index:2147483647;max-width:70vw;color:#fff;font:600 13px system-ui',
+      'padding:10px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5)',
+      'opacity:0;transition:opacity .18s,transform .18s',
+      'background:' + background
+    ].join(';')
+
+    // Built by concatenation rather than a nested template literal, which is far too easy
+    // to mis-escape into a syntax error inside the page.
+    const script =
+      '(() => {' +
+      'const el = document.createElement("div");' +
+      'el.textContent = ' + JSON.stringify(text) + ';' +
+      'el.style.cssText = ' + JSON.stringify(style) + ';' +
+      'document.documentElement.appendChild(el);' +
+      'requestAnimationFrame(() => { el.style.opacity = "1";' +
+      ' el.style.transform = "translateX(-50%) translateY(0)"; });' +
+      'setTimeout(() => { el.style.opacity = "0"; }, 3200);' +
+      'setTimeout(() => el.remove(), 3500);' +
+      '})()'
+
+    view.webContents.executeJavaScript(script, true).catch(() => undefined)
+  })
 }

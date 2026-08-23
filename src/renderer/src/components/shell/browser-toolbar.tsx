@@ -9,6 +9,9 @@ import {
   ExternalLink,
   Layers,
   Loader2,
+  Monitor,
+  Smartphone,
+  Tablet,
   Lock,
   PanelRight,
   RotateCw,
@@ -32,6 +35,7 @@ import {
 import { useAudit } from '@/audit'
 import { Compare } from '@/components/shell/compare'
 import { ElementPicker } from '@/components/shell/element-picker'
+import type { ViewportPreset } from '@/actions'
 import { useActiveTab, useApp } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -42,6 +46,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
@@ -64,6 +71,12 @@ export const OUTPUT_PROFILES = [
 ] as const
 
 export type OutputProfile = (typeof OUTPUT_PROFILES)[number]['id']
+
+const PRESETS: { id: ViewportPreset; label: string; width: number; icon: typeof Monitor }[] = [
+  { id: 'mobile', label: 'Mobile', width: 390, icon: Smartphone },
+  { id: 'tablet', label: 'Tablet', width: 834, icon: Tablet },
+  { id: 'desktop', label: 'Desktop', width: 1440, icon: Monitor }
+]
 
 function AddressBar({ disabled }: { disabled: boolean }): React.JSX.Element {
   const tab = useActiveTab()
@@ -226,6 +239,35 @@ export function BrowserToolbar(): React.JSX.Element {
               Full scrollable page
               <DropdownMenuShortcut>⌘⇧3</DropdownMenuShortcut>
             </DropdownMenuItem>
+
+            {/* The page is narrowed to the preset for the shot, then put back. */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Smartphone />
+                At a set width
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-56">
+                {PRESETS.map(({ id, label, width, icon: PresetIcon }) => (
+                  <DropdownMenuSub key={id}>
+                    <DropdownMenuSubTrigger>
+                      <PresetIcon />
+                      <span className="flex-1">{label}</span>
+                      <span className="text-xs text-muted-foreground">{width}px</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onSelect={() => void captureViewport(id)}>
+                        <Camera />
+                        Visible viewport
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => void captureFullPage(id)}>
+                        <Layers />
+                        Full page
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuItem onSelect={() => void captureRegion()}>
               <Crop />
               Drag a region
@@ -245,7 +287,7 @@ export function BrowserToolbar(): React.JSX.Element {
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void profileDesign()}>
               <Palette />
-              Profile this page
+              Generate Design System
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

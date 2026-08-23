@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ExternalLink, FolderOpen, SquareDashedMousePointer, Trash2 } from 'lucide-react'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
+import { SectionViewer } from '@/components/library/section-viewer'
 import { TagEditor } from '@/components/library/tag-editor'
 import { useApp, useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +12,18 @@ import type { SectionRecord } from '../../../preload'
 export default function Sections(): React.JSX.Element {
   const { sections, remove } = useLibrary()
   const newTab = useApp((s) => s.newTab)
+  const setOverlay = useApp((s) => s.setOverlay)
   const navigate = useNavigate()
+  const [open, setOpen] = useState<SectionRecord | null>(null)
+
+  const openViewer = (record: SectionRecord): void => {
+    setOverlay(true)
+    setOpen(record)
+  }
+  const closeViewer = (): void => {
+    setOverlay(false)
+    setOpen(null)
+  }
 
   const revisit = (record: SectionRecord): void => {
     newTab(record.url)
@@ -18,6 +31,13 @@ export default function Sections(): React.JSX.Element {
   }
 
   return (
+    <>
+      {open && (
+        <SectionViewer
+          record={sections.find((x) => x.id === open.id) ?? open}
+          onClose={closeViewer}
+        />
+      )}
     <LibraryFrame
       icon={SquareDashedMousePointer}
       title="Sections"
@@ -86,8 +106,8 @@ export default function Sections(): React.JSX.Element {
               className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-brand/50"
             >
               <button
-                onClick={() => revisit(record)}
-                title="Reopen the source page"
+                onClick={() => openViewer(record)}
+                title="Open this section"
                 className="block max-h-56 overflow-hidden bg-secondary/40"
               >
                 <img
@@ -101,7 +121,9 @@ export default function Sections(): React.JSX.Element {
               <div className="flex flex-col gap-2 border-t border-border p-3">
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{record.name}</p>
+                    <button onClick={() => openViewer(record)} className="block w-full text-left">
+                      <p className="truncate text-sm font-medium">{record.name}</p>
+                    </button>
                     <p className="truncate text-xs text-muted-foreground">
                       {record.host} · {timeAgo(record.createdAt)}
                     </p>
@@ -163,5 +185,6 @@ export default function Sections(): React.JSX.Element {
         )
       }
     </LibraryFrame>
+    </>
   )
 }

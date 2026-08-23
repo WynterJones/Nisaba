@@ -99,9 +99,9 @@ const DETECT_SCRIPT = `(() => {
       el.getAttribute('aria-label') ||
       el.getAttribute('placeholder') ||
       el.getAttribute('title') ||
-      (el.textContent || '').trim().split(/\s{2,}|\n/)[0] ||
+      (el.textContent || '').trim().split(/\\s{2,}|\\n/)[0] ||
       ''
-    return raw.trim().replace(/\s+/g, ' ').slice(0, 40)
+    return raw.trim().replace(/\\s+/g, ' ').slice(0, 40)
   }
 
   const seen = new Set()

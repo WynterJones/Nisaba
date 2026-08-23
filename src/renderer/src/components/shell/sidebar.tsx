@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -69,11 +68,12 @@ function Flyout({
 }): React.JSX.Element {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const setOverlay = useApp((s) => s.setOverlay)
   const active = flyout.items.some((item) => item.to === pathname)
   const Icon = flyout.icon
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={setOverlay}>
       <DropdownMenuTrigger asChild>
         <button
           title={collapsed ? flyout.label : undefined}
@@ -104,8 +104,7 @@ function Flyout({
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="start" className="w-60">
-        <DropdownMenuLabel>{flyout.label}</DropdownMenuLabel>
+      <DropdownMenuContent side="right" align="start" className="w-56">
         {flyout.items.map((item) => (
           <DropdownMenuItem key={item.to} onSelect={() => navigate(item.to)}>
             <item.icon className={cn(pathname === item.to && 'text-brand-bright')} />
@@ -120,6 +119,7 @@ function Flyout({
 export function Sidebar(): React.JSX.Element {
   const collapsed = useApp((s) => s.sidebarCollapsed)
   const toggle = useApp((s) => s.toggleSidebar)
+  const setOverlay = useApp((s) => s.setOverlay)
   const navigate = useNavigate()
 
   return (
@@ -155,7 +155,7 @@ export function Sidebar(): React.JSX.Element {
       </ScrollArea>
 
       <div className="shrink-0 border-t border-sidebar-border p-2">
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={setOverlay}>
           <DropdownMenuTrigger asChild>
             <button
               title="Workspace, settings"

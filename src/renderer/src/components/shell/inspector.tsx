@@ -329,7 +329,7 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
   }
 
   const blocker = !savedSource
-    ? 'Save this section first — the agent reads its files from disk.'
+    ? 'Save this section first — the agent reads it from disk.'
     : workspaces.length === 0
       ? 'Create a workspace so the agent has somewhere it is allowed to write.'
       : !agent?.path
@@ -385,14 +385,18 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
                   key={w.id}
                   onClick={() => setWorkspaceId(w.id)}
                   className={cn(
-                    'flex flex-col rounded-md border px-2.5 py-2 text-left transition-colors',
+                    'flex w-full min-w-0 flex-col rounded-md border px-2.5 py-2 text-left transition-colors',
                     workspaceId === w.id
                       ? 'border-brand/60 bg-brand/10'
                       : 'border-border hover:bg-accent'
                   )}
                 >
-                  <span className="truncate text-sm">{w.name}</span>
-                  <span className="truncate font-mono text-[10px] text-muted-foreground">
+                  <span className="w-full truncate text-sm">{w.name}</span>
+                  {/* A flex-column child needs an explicit width before truncate does anything. */}
+                  <span
+                    title={w.root}
+                    className="w-full truncate font-mono text-[10px] text-muted-foreground"
+                  >
                     {w.root}
                   </span>
                 </button>

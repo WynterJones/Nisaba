@@ -1,5 +1,5 @@
-import { ipcMain, type WebContentsView } from 'electron'
-import { activeView } from './browser'
+import { ipcMain, nativeImage, type WebContentsView } from 'electron'
+import { activeView, withVisibleView } from './browser'
 import { addRecord, hashImage, newId, writeImage, type CaptureRecord } from './library'
 
 /** Full-page shots beyond this get clipped rather than exhausting memory. */
@@ -20,8 +20,69 @@ function meta(view: WebContentsView): { url: string; title: string; host: string
 
 type Shot = { png: Buffer; width: number; height: number }
 
+/**
+ * A view that has just been shown, resized or navigated may have no composited frame yet,
+ * and Electron answers with "Current display surface not available". Give it a moment.
+ */
+async function grab(
+  view: WebContentsView,
+  rect?: Electron.Rectangle
+): Promise<Electron.NativeImage> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await view.webContents.capturePage(rect)
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 140))
+    }
+  }
+
+  // The compositor never offered a surface — ask the renderer itself instead. This is the
+  // same path full-page capture uses, and it does not depend on the view being composited.
+  const png = await captureViaCdp(view, rect)
+  return nativeImage.createFromBuffer(png)
+}
+
+/** Screenshot straight from the page, clipped if a rect is given. */
+async function captureViaCdp(view: WebContentsView, rect?: Electron.Rectangle): Promise<Buffer> {
+  const wc = view.webContents
+  const attachedHere = !wc.debugger.isAttached()
+  if (attachedHere) wc.debugger.attach('1.3')
+  try {
+    const metrics = (await wc.debugger.sendCommand('Page.getLayoutMetrics')) as {
+      cssVisualViewport?: { clientWidth: number; clientHeight: number }
+      cssLayoutViewport?: { clientWidth: number; clientHeight: number }
+    }
+    const vp = metrics.cssVisualViewport ?? metrics.cssLayoutViewport
+    const clip = rect
+      ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height, scale: 1 }
+      : {
+          x: 0,
+          y: 0,
+          width: Math.round(vp?.clientWidth ?? view.getBounds().width),
+          height: Math.round(vp?.clientHeight ?? view.getBounds().height),
+          scale: 1
+        }
+
+    const result = (await wc.debugger.sendCommand('Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: false,
+      clip
+    })) as { data: string }
+    return Buffer.from(result.data, 'base64')
+  } finally {
+    if (attachedHere && wc.debugger.isAttached()) {
+      try {
+        wc.debugger.detach()
+      } catch {
+        /* already detached */
+      }
+    }
+  }
+}
+
 async function captureViewport(view: WebContentsView, rect?: Rect): Promise<Shot> {
-  const image = await view.webContents.capturePage(
+  const image = await grab(
+    view,
     rect
       ? {
           x: Math.round(rect.x),
@@ -150,19 +211,50 @@ function flash(view: WebContentsView, message: string): void {
   })
 }
 
-export function registerCaptureIpc(): void {
-  const withView = async (
-    fn: (view: WebContentsView) => Promise<CaptureRecord | null>
-  ): Promise<CaptureRecord | null> => {
-    const view = activeView()
-    if (!view) throw new Error('Open a page before capturing')
-    return fn(view)
+export const VIEWPORTS = {
+  mobile: { label: 'Mobile', width: 390 },
+  tablet: { label: 'Tablet', width: 834 },
+  desktop: { label: 'Desktop', width: 1440 },
+  current: { label: 'Current width', width: 0 }
+} as const
+
+export type ViewportName = keyof typeof VIEWPORTS
+
+/**
+ * Narrows the page to a preset width for the shot, then puts it back. The view keeps its
+ * on-screen position so the resize is not visible as a jump.
+ */
+async function atWidth<T>(
+  view: WebContentsView,
+  width: number,
+  fn: () => Promise<T>
+): Promise<T> {
+  const original = view.getBounds()
+  if (!width || width === original.width) return fn()
+
+  view.setBounds({ ...original, width })
+  // Layout, then a frame to paint at the new width before the shutter.
+  await new Promise((resolve) => setTimeout(resolve, 420))
+  try {
+    return await fn()
+  } finally {
+    view.setBounds(original)
   }
+}
+
+export function registerCaptureIpc(): void {
+
+  // Every capture runs with the page guaranteed visible, because a menu or dialog may be
+  // covering it at the moment the action fires.
+  const withView = (
+    fn: (view: WebContentsView) => Promise<CaptureRecord | null>
+  ): Promise<CaptureRecord | null> => withVisibleView(fn)
 
   const save = async (
     view: WebContentsView,
     shot: Shot,
-    kind: CaptureRecord['kind']
+    kind: CaptureRecord['kind'],
+    viewport: ViewportName = 'current'
   ): Promise<CaptureRecord> => {
     const id = newId()
     const record = await addRecord('captures', {
@@ -172,6 +264,7 @@ export function registerCaptureIpc(): void {
       ...meta(view),
       width: shot.width,
       height: shot.height,
+      viewport: viewport === 'current' ? null : VIEWPORTS[viewport].label,
       file: await writeImage('captures', id, shot.png),
       phash: await hashImage(shot.png)
     })
@@ -179,12 +272,20 @@ export function registerCaptureIpc(): void {
     return record
   }
 
-  ipcMain.handle('capture:viewport', () =>
-    withView(async (view) => save(view, await captureViewport(view), 'viewport'))
+  ipcMain.handle('capture:viewport', (_e, viewport: ViewportName = 'current') =>
+    withView(async (view) =>
+      atWidth(view, VIEWPORTS[viewport].width, async () =>
+        save(view, await captureViewport(view), 'viewport', viewport)
+      )
+    )
   )
 
-  ipcMain.handle('capture:fullpage', () =>
-    withView(async (view) => save(view, await captureFullPage(view), 'fullpage'))
+  ipcMain.handle('capture:fullpage', (_e, viewport: ViewportName = 'current') =>
+    withView(async (view) =>
+      atWidth(view, VIEWPORTS[viewport].width, async () =>
+        save(view, await captureFullPage(view), 'fullpage', viewport)
+      )
+    )
   )
 
   ipcMain.handle('capture:region', () =>
@@ -200,11 +301,10 @@ export function registerCaptureIpc(): void {
   )
 }
 
-/** Used by the extractor to grab just the selected element. */
+/** Used by the extractor and the auditor to grab just the selected element. */
 export async function captureRect(rect: Rect): Promise<Buffer | null> {
-  const view = activeView()
-  if (!view) return null
-  const shot = await captureViewport(view, rect)
+  if (!activeView()) return null
+  const shot = await withVisibleView((view) => captureViewport(view, rect))
   return shot.png
 }
 

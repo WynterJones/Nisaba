@@ -2,7 +2,12 @@ import { toast } from 'sonner'
 import { useApp, useLibrary } from '@/store'
 
 function fail(error: unknown): void {
-  toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
+  const message = (error instanceof Error ? error.message : String(error))
+    .replace(/^Error: /, '')
+    .replace(/^Error invoking remote method '[^']+': /, '')
+  toast.error(message)
+  // A toast is hidden behind the page view while browsing, so say it in the page too.
+  void window.api.browser.flash(message, 'error')
 }
 
 async function capture(
@@ -18,11 +23,13 @@ async function capture(
   }
 }
 
-export const captureViewport = (): Promise<void> =>
-  capture(() => window.api.capture.viewport(), 'Capture cancelled')
+export type ViewportPreset = 'mobile' | 'tablet' | 'desktop' | 'current'
 
-export const captureFullPage = (): Promise<void> =>
-  capture(() => window.api.capture.fullPage(), 'Capture cancelled')
+export const captureViewport = (preset: ViewportPreset = 'current'): Promise<void> =>
+  capture(() => window.api.capture.viewport(preset), 'Capture cancelled')
+
+export const captureFullPage = (preset: ViewportPreset = 'current'): Promise<void> =>
+  capture(() => window.api.capture.fullPage(preset), 'Capture cancelled')
 
 export const captureRegion = (): Promise<void> =>
   capture(() => window.api.capture.region(), 'Region capture cancelled')
