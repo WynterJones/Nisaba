@@ -1,6 +1,6 @@
 import { app, net, protocol, shell } from 'electron'
 import { randomUUID } from 'crypto'
-import { mkdir, readFile, rename, writeFile, rm } from 'fs/promises'
+import { mkdir, writeFile, rm } from 'fs/promises'
 import { join, relative, isAbsolute } from 'path'
 import { pathToFileURL } from 'url'
 
@@ -9,6 +9,8 @@ export type Rect = { x: number; y: number; width: number; height: number }
 type Base = { id: string; createdAt: number }
 
 export type CaptureRecord = Base & {
+  /** 64-bit dHash of `file`, for similarity search. */
+  phash?: string | null
   kind: 'viewport' | 'fullpage' | 'region' | 'element'
   file: string
   url: string
@@ -27,6 +29,8 @@ export type Annotation =
   | { id: string; type: 'callout'; at: { x: number; y: number }; index: number; color: string }
 
 export type SectionRecord = Base & {
+  /** 64-bit dHash of `file`, for similarity search. */
+  phash?: string | null
   name: string
   file: string
   url: string
@@ -48,6 +52,8 @@ export type SectionRecord = Base & {
 export type ElementState = { state: string; file: string; styles: Record<string, string> }
 
 export type ElementRecord = Base & {
+  /** 64-bit dHash of `file`, for similarity search. */
+  phash?: string | null
   category: string
   label: string
   host: string
@@ -61,6 +67,8 @@ export type ElementRecord = Base & {
 }
 
 export type DesignSystemRecord = Base & {
+  /** 64-bit dHash of `file`, for similarity search. */
+  phash?: string | null
   name: string
   host: string
   url: string
@@ -112,6 +120,14 @@ export type JobRecord = Base & {
   error: string | null
 }
 
+export type VerificationCheck = {
+  label: string
+  command: string
+  status: 'pending' | 'running' | 'passed' | 'failed' | 'skipped'
+  output: string
+  ms: number
+}
+
 export type ComponentRecord = Base & {
   name: string
   framework: string
@@ -121,6 +137,12 @@ export type ComponentRecord = Base & {
   files: string[]
   sourceIds: string[]
   verified: boolean
+  /** Result of the last verification run, and whether a person overrode it. */
+  checks?: VerificationCheck[]
+  verifiedAt?: number | null
+  overridden?: boolean
+  /** Screenshot of the running preview, for comparison against the source. */
+  previewShot?: string | null
 }
 
 export type TemplateRecord = ComponentRecord & { pages: string[] }
@@ -217,47 +239,18 @@ function indexPath(): string {
   return join(libraryRoot(), 'index.json')
 }
 
-/**
- * ponytail: one JSON index rather than SQLite. Electron 33's Node has no built-in
- * sqlite and a native module is a build liability; swap this module's read/write for
- * real queries when the library outgrows a single file.
- */
-let cache: LibraryIndex | null = null
-let writing: Promise<void> = Promise.resolve()
-
+/** Storage lives in SQLite now; this module keeps the record types and file helpers. */
 export async function readIndex(): Promise<LibraryIndex> {
-  if (cache) return cache
-  try {
-    const parsed = JSON.parse(await readFile(indexPath(), 'utf8')) as Partial<LibraryIndex> & {
-      redlines?: AuditRecord[]
-    }
-    // Older indexes only had captures and sections, and called audits "redlines".
-    const { redlines, ...rest } = parsed
-    cache = { ...EMPTY(), ...rest, audits: parsed.audits ?? redlines ?? [], version: 2 }
-  } catch {
-    cache = EMPTY()
-  }
-  return cache
-}
-
-/** Serialised so two quick mutations can't interleave and lose one another. */
-async function writeIndex(next: LibraryIndex): Promise<void> {
-  cache = next
-  writing = writing.then(async () => {
-    await mkdir(libraryRoot(), { recursive: true })
-    const tmp = `${indexPath()}.tmp`
-    await writeFile(tmp, JSON.stringify(next, null, 2))
-    await rename(tmp, indexPath())
-  })
-  return writing
+  const { readAll } = await import('./db')
+  return readAll()
 }
 
 export async function addRecord<K extends Collection>(
   kind: K,
   record: LibraryIndex[K][number]
 ): Promise<LibraryIndex[K][number]> {
-  const index = await readIndex()
-  await writeIndex({ ...index, [kind]: [record, ...index[kind]] } as LibraryIndex)
+  const { put } = await import('./db')
+  put(kind, record as never)
   return record
 }
 
@@ -266,22 +259,16 @@ export async function patchRecord<K extends Collection>(
   id: string,
   patch: Partial<LibraryIndex[K][number]>
 ): Promise<void> {
-  const index = await readIndex()
-  const next = index[kind].map((r) => (r.id === id ? { ...r, ...patch } : r))
-  await writeIndex({ ...index, [kind]: next } as LibraryIndex)
+  const { get, put } = await import('./db')
+  const existing = get(kind, id)
+  if (!existing) return
+  put(kind, { ...existing, ...patch } as never)
 }
 
 export async function removeRecord(kind: Collection, id: string): Promise<void> {
-  const index = await readIndex()
-  const record = index[kind].find((r) => r.id === id) as { file?: string } | undefined
-  if (!record) return
-  if (record.file) await rm(join(libraryRoot(), record.file), { force: true })
-  await writeIndex({ ...index, [kind]: index[kind].filter((r) => r.id !== id) } as LibraryIndex)
-}
-
-/** Used by the importer after it rewrites index.json out from under us. */
-export function __resetCache(): void {
-  cache = null
+  const { remove } = await import('./db')
+  const record = remove(kind, id) as { file?: string } | null
+  if (record?.file) await rm(join(libraryRoot(), record.file), { force: true })
 }
 
 export function newId(): string {
@@ -294,6 +281,12 @@ export async function writeImage(folder: string, id: string, png: Buffer): Promi
   const rel = `${folder}/${id}.png`
   await writeFile(join(libraryRoot(), rel), png)
   return rel
+}
+
+/** Perceptual hash, stored on the record so similarity search never re-reads the file. */
+export async function hashImage(png: Buffer): Promise<string | null> {
+  const { hashBuffer } = await import('./similarity')
+  return hashBuffer(png)
 }
 
 export async function writeText(folder: string, name: string, body: string): Promise<string> {

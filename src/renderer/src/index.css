@@ -184,3 +184,67 @@
     transform: translateY(0);
   }
 }
+
+/* --- Buttons ------------------------------------------------------------
+   A little dimension: a top inset highlight, a hairline border, a vertical
+   gradient and a shadow that tightens when pressed. Shared with the website. */
+
+.btn-raised {
+  position: relative;
+  border: 1px solid rgb(0 0 0 / 0.55);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--btn-face) 100%, white 14%),
+    var(--btn-face)
+  );
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.22),
+    inset 0 -1px 0 0 rgb(0 0 0 / 0.28),
+    0 1px 2px rgb(0 0 0 / 0.45),
+    0 6px 16px -8px var(--btn-glow, transparent);
+  transition:
+    box-shadow 140ms ease,
+    background-image 140ms ease,
+    transform 90ms ease;
+}
+
+.btn-raised:hover:not(:disabled) {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--btn-face) 100%, white 22%),
+    color-mix(in srgb, var(--btn-face) 100%, white 6%)
+  );
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.28),
+    inset 0 -1px 0 0 rgb(0 0 0 / 0.28),
+    0 2px 4px rgb(0 0 0 / 0.45),
+    0 10px 24px -10px var(--btn-glow, transparent);
+}
+
+.btn-raised:active:not(:disabled) {
+  transform: translateY(1px);
+  background-image: linear-gradient(
+    180deg,
+    var(--btn-face),
+    color-mix(in srgb, var(--btn-face) 100%, black 10%)
+  );
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 0.35),
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 1px 1px rgb(0 0 0 / 0.4);
+}
+
+.btn-raised--primary {
+  --btn-face: var(--brand);
+  --btn-glow: color-mix(in srgb, var(--brand) 65%, transparent);
+}
+
+.btn-raised--secondary {
+  --btn-face: oklch(0.255 0.006 285);
+  border-color: rgb(255 255 255 / 0.08);
+}
+
+.btn-raised--destructive {
+  --btn-face: var(--destructive);
+  --btn-glow: color-mix(in srgb, var(--destructive) 55%, transparent);
+}

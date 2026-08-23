@@ -74,14 +74,21 @@ runs, streams the log, and records what was produced with a trail back to its so
 
 <img src="docs/library.png" alt="The Captures library with real screenshots of Vercel, Stripe and Linear" width="100%">
 
-## Roadmap
+## Also in 1.0
 
-v1.0 is the complete loop. Next up: a local preview server so generated output can be compared
-automatically as it runs, verification commands before a component is marked verified, visual
-similarity search across the library, and SQLite in place of the single JSON index.
+**Similarity** — every image is perceptually hashed as it is saved, so the library can find
+near-duplicates and answer "what else looks like this" without leaving your machine.
 
-The full specification, including all eight phases and their acceptance criteria, lives in
-[`_PLANS/PRD.md`](_PLANS/PRD.md).
+**Verify** — a component can run your project's own lint, type, test and build scripts, in order,
+stopping at the first failure. It is only marked verified when they all pass, or when you
+explicitly override a failure.
+
+**Preview** — start the workspace's dev server from inside Nisaba, open what it serves in a tab,
+and compare it against the source capture it was built from.
+
+**SQLite** — the library is a real database with full-text search, using Node's built-in driver.
+No native module, nothing to rebuild per platform. An older JSON index is migrated on first run and
+kept alongside as `index.json.migrated`.
 
 ## Install
 
@@ -150,6 +157,10 @@ is untrusted third-party content.
 No account. No cloud. Your captures, prompts and generated code stay on your machine, and the only
 thing that ever leaves it is what you explicitly send through an agent CLI you installed and
 authenticated yourself. Diagnostics are opt-in and off.
+
+## Made by
+
+[Wynter Jones](https://wynter.ai).
 
 ## Contributing
 

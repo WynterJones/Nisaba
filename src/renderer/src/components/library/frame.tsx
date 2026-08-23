@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowDownUp, Check, LayoutGrid, ListFilter, Rows3, Search, type LucideIcon } from 'lucide-react'
+import { Backdrop } from '@/components/canvas/backdrop'
 import { useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -186,18 +187,20 @@ export function LibraryFrame<T extends { createdAt: number }>({
       </header>
 
       {items.length === 0 ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-          <span className="grid size-14 place-items-center rounded-2xl border border-border bg-secondary/40">
-            <Icon className="size-6 text-muted-foreground" />
-          </span>
-          <div className="flex flex-col gap-1.5">
-            <h2 className="text-base font-medium">{emptyTitle}</h2>
-            <p className="max-w-sm text-sm text-muted-foreground">{emptyBlurb}</p>
+        <Backdrop>
+          <div className="flex flex-col items-center gap-4 p-8 text-center">
+            <span className="grid size-14 place-items-center rounded-2xl border border-border bg-secondary/40">
+              <Icon className="size-6 text-muted-foreground" />
+            </span>
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-base font-medium">{emptyTitle}</h2>
+              <p className="max-w-sm text-sm text-muted-foreground">{emptyBlurb}</p>
+            </div>
+            <Button size="sm" onClick={() => navigate('/browse')}>
+              Start browsing
+            </Button>
           </div>
-          <Button size="sm" onClick={() => navigate('/browse')}>
-            Start browsing
-          </Button>
-        </div>
+        </Backdrop>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
           {children(shown, view)}

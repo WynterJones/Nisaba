@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router'
 import { useState } from 'react'
 import { Camera, ExternalLink, FolderOpen, PenLine, Trash2 } from 'lucide-react'
 import { Annotator } from '@/components/library/annotator'
+import { CaptureViewer } from '@/components/library/capture-viewer'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { cn } from '@/lib/utils'
 import { useApp, useLibrary } from '@/store'
@@ -76,6 +77,16 @@ export default function Captures(): React.JSX.Element {
   const setOverlay = useApp((s) => s.setOverlay)
   const navigate = useNavigate()
   const [annotating, setAnnotating] = useState<CaptureRecord | null>(null)
+  const [viewing, setViewing] = useState<CaptureRecord | null>(null)
+
+  const openViewer = (record: CaptureRecord): void => {
+    setOverlay(true)
+    setViewing(record)
+  }
+  const closeViewer = (): void => {
+    setOverlay(false)
+    setViewing(null)
+  }
 
   const openAnnotator = (record: CaptureRecord): void => {
     setOverlay(true)
@@ -85,6 +96,8 @@ export default function Captures(): React.JSX.Element {
     setOverlay(false)
     setAnnotating(null)
   }
+
+  /** `revisit` still backs the row action that jumps straight to the source page. */
 
   const revisit = (url: string): void => {
     newTab(url)
@@ -97,6 +110,18 @@ export default function Captures(): React.JSX.Element {
         <Annotator
           capture={captures.find((c) => c.id === annotating.id) ?? annotating}
           onClose={closeAnnotator}
+        />
+      )}
+      {viewing && !annotating && (
+        <CaptureViewer
+          capture={captures.find((c) => c.id === viewing.id) ?? viewing}
+          siblings={captures}
+          onSelect={setViewing}
+          onClose={closeViewer}
+          onAnnotate={(record) => {
+            setViewing(null)
+            setAnnotating(record)
+          }}
         />
       )}
     <LibraryFrame
@@ -120,8 +145,8 @@ export default function Captures(): React.JSX.Element {
               >
                 <RowActions record={record} floating onAnnotate={openAnnotator} />
                 <button
-                  onClick={() => revisit(record.url)}
-                  title="Reopen the source page"
+                  onClick={() => openViewer(record)}
+                  title="Open this capture"
                   className="block aspect-[4/3] overflow-hidden bg-secondary/40"
                 >
                   <img
@@ -155,7 +180,7 @@ export default function Captures(): React.JSX.Element {
                   loading="lazy"
                   className="h-10 w-16 shrink-0 rounded border border-border object-cover object-top"
                 />
-                <button onClick={() => revisit(record.url)} className="min-w-0 flex-1 text-left">
+                <button onClick={() => openViewer(record)} className="min-w-0 flex-1 text-left">
                   <span className="block truncate text-sm font-medium">{record.title}</span>
                   <span className="block truncate text-xs text-muted-foreground">{record.url}</span>
                 </button>

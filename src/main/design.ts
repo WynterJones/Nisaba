@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { activeView } from './browser'
 import { pageMeta } from './capture'
-import { addRecord, newId, writeImage, writeText, type DesignSystemRecord } from './library'
+import { addRecord, hashImage, newId, writeImage, writeText, type DesignSystemRecord } from './library'
 
 type Tokens = DesignSystemRecord['tokens']
 type TypeScale = DesignSystemRecord['typeScale']
@@ -230,7 +230,8 @@ export function registerDesignIpc(): void {
 
     const id = newId()
     const image = await view.webContents.capturePage()
-    const file = await writeImage('design-systems', id, image.toPNG())
+    const png = image.toPNG()
+    const file = await writeImage('design-systems', id, png)
     await writeText('design-systems', `${id}.md`, designMd)
     await writeText(
       'design-systems',
@@ -245,6 +246,7 @@ export function registerDesignIpc(): void {
       host: page.host,
       url: page.url,
       file,
+      phash: await hashImage(png),
       tokens,
       typeScale: raw.typeScale,
       designMd

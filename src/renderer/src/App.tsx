@@ -5,6 +5,7 @@ import { useApp, useLibrary } from '@/store'
 import { CommandPalette } from '@/components/shell/command-palette'
 import { JobsDrawer } from '@/components/shell/jobs-drawer'
 import { Sidebar } from '@/components/shell/sidebar'
+import { Splash } from '@/components/shell/splash'
 import { TitleBar } from '@/components/shell/title-bar'
 import Bookmarks from '@/routes/bookmarks'
 import Browse from '@/routes/browse'
@@ -83,6 +84,7 @@ function Shell(): React.JSX.Element {
         <JobsDrawer />
       </div>
       <CommandPalette />
+      <Splash />
     </div>
   )
 }

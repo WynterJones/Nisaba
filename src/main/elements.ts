@@ -1,7 +1,7 @@
 import { ipcMain, type WebContentsView } from 'electron'
 import { activeView } from './browser'
 import { captureRect, pageMeta } from './capture'
-import { addRecord, newId, writeImage, type ElementRecord, type Rect } from './library'
+import { addRecord, hashImage, newId, writeImage, type ElementRecord, type Rect } from './library'
 
 export type ElementCandidate = {
   key: string
@@ -230,6 +230,7 @@ export function registerElementIpc(): void {
             url: page.url,
             selector: candidate.selector,
             file: await writeImage('elements', id, png),
+            phash: await hashImage(png),
             rect: candidate.rect,
             states,
             styles: candidate.styles,

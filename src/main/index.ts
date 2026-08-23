@@ -13,6 +13,8 @@ import { registerExportIpc } from './exporter'
 import { registerAuditIpc } from './audit'
 import { registerAuditExportIpc } from './audit-export'
 import { registerSourceMapIpc } from './sourcemap'
+import { registerSimilarityIpc } from './similarity'
+import { registerVerifyIpc, stopAllPreviews } from './verify'
 import { writeFile } from 'fs/promises'
 import {
   addRecord,
@@ -96,6 +98,8 @@ app.whenReady().then(() => {
   registerAuditIpc()
   registerAuditExportIpc()
   registerSourceMapIpc()
+  registerSimilarityIpc()
+  registerVerifyIpc()
   void reconcileJobs()
 
   ipcMain.handle('library:read', () => readIndex())
@@ -141,6 +145,9 @@ app.whenReady().then(() => {
   if (app.isPackaged) void autoUpdater.checkForUpdatesAndNotify()
 })
 
+app.on('before-quit', stopAllPreviews)
+
 app.on('window-all-closed', () => {
+  stopAllPreviews()
   if (process.platform !== 'darwin') app.quit()
 })

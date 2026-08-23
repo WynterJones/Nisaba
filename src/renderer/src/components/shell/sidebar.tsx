@@ -1,9 +1,16 @@
-import { NavLink, useNavigate } from 'react-router'
-import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { NAV } from '@/nav'
+import { NavLink, useLocation, useNavigate } from 'react-router'
+import { ChevronRight, ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { NAV, SYSTEM, isFlyout, type NavFlyout } from '@/nav'
 import { useApp } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 function NavRow({
@@ -52,6 +59,64 @@ function NavRow({
   )
 }
 
+/** One sidebar row that opens a shelf of related screens. */
+function Flyout({
+  flyout,
+  collapsed
+}: {
+  flyout: NavFlyout
+  collapsed: boolean
+}): React.JSX.Element {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const active = flyout.items.some((item) => item.to === pathname)
+  const Icon = flyout.icon
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          title={collapsed ? flyout.label : undefined}
+          className={cn(
+            'group relative flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
+            'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground',
+            active && 'bg-sidebar-accent text-foreground',
+            collapsed && 'justify-center px-0'
+          )}
+        >
+          <span
+            className={cn(
+              'absolute left-0 h-4 w-0.5 rounded-r-full bg-brand-bright transition-opacity',
+              active ? 'opacity-100' : 'opacity-0'
+            )}
+          />
+          <Icon
+            className={cn(
+              'size-4 shrink-0 transition-transform duration-150 group-hover:-translate-y-px group-hover:scale-110',
+              active && 'text-brand-bright drop-shadow-[0_0_6px_var(--brand-bright)]'
+            )}
+          />
+          {!collapsed && (
+            <>
+              <span className="truncate">{flyout.label}</span>
+              <ChevronRight className="ml-auto size-3.5 opacity-50" />
+            </>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" align="start" className="w-60">
+        <DropdownMenuLabel>{flyout.label}</DropdownMenuLabel>
+        {flyout.items.map((item) => (
+          <DropdownMenuItem key={item.to} onSelect={() => navigate(item.to)}>
+            <item.icon className={cn(pathname === item.to && 'text-brand-bright')} />
+            <span className="flex-1">{item.label}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function Sidebar(): React.JSX.Element {
   const collapsed = useApp((s) => s.sidebarCollapsed)
   const toggle = useApp((s) => s.toggleSidebar)
@@ -76,9 +141,13 @@ export function Sidebar(): React.JSX.Element {
                   {group.label}
                 </div>
               )}
-              {group.items.map((item) => (
-                <NavRow key={item.to} {...item} collapsed={collapsed} />
-              ))}
+              {group.entries.map((entry) =>
+                isFlyout(entry) ? (
+                  <Flyout key={entry.key} flyout={entry} collapsed={collapsed} />
+                ) : (
+                  <NavRow key={entry.to} {...entry} collapsed={collapsed} />
+                )
+              )}
             </div>
           ))}
 
@@ -86,27 +155,38 @@ export function Sidebar(): React.JSX.Element {
       </ScrollArea>
 
       <div className="shrink-0 border-t border-sidebar-border p-2">
-        <button
-          onClick={() => navigate('/workspaces')}
-          title="Workspaces"
-          className={cn(
-            'flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-sidebar-accent',
-            collapsed && 'justify-center'
-          )}
-        >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              title="Workspace, settings"
+              className={cn(
+                'flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-sidebar-accent',
+                collapsed && 'justify-center'
+              )}
+            >
           <span className="grid size-8 shrink-0 place-items-center rounded-md bg-brand text-sm font-semibold text-primary-foreground">
             W
           </span>
           {!collapsed && (
             <>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">Workspace</span>
-                <span className="block truncate text-xs text-brand-bright">Local library</span>
-              </span>
-              <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
-            </>
-          )}
-        </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">Workspace</span>
+                    <span className="block truncate text-xs text-brand-bright">Local library</span>
+                  </span>
+                  <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" className="w-60">
+            {SYSTEM.map((item) => (
+              <DropdownMenuItem key={item.to} onSelect={() => navigate(item.to)}>
+                <item.icon />
+                <span className="flex-1">{item.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           variant="ghost"
           size="sm"

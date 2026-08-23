@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { ArrowUpRight, Compass, MousePointerClick, X } from 'lucide-react'
 import { cancelExtract } from '@/actions'
+import { Backdrop } from '@/components/canvas/backdrop'
 import { BrowserToolbar, toUrl } from '@/components/shell/browser-toolbar'
 import { Inspector } from '@/components/shell/inspector'
 import { AuditPanel } from '@/components/shell/audit-panel'
@@ -36,7 +37,13 @@ function ViewportHost(): React.JSX.Element {
   }, [])
 
   // Leaving Browse must hide the native views, or they paint over the library routes.
-  useEffect(() => () => void window.api.browser.hideAll(), [])
+  useEffect(() => {
+    useApp.getState().setViewportMounted(true)
+    return () => {
+      useApp.getState().setViewportMounted(false)
+      void window.api.browser.hideAll()
+    }
+  }, [])
   useEffect(() => {
     const { activeTabId } = useApp.getState()
     if (activeTabId) void window.api.browser.activate(activeTabId)
@@ -49,7 +56,8 @@ function StartPage(): React.JSX.Element {
   const newTab = useApp((s) => s.newTab)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 bg-background p-8">
+    <Backdrop>
+      <div className="flex flex-col items-center gap-8 p-8">
       <div className="flex flex-col items-center gap-3 text-center">
         <span className="grid size-14 place-items-center rounded-2xl border border-border bg-secondary/50">
           <Compass className="size-6 text-brand-bright" />
@@ -62,14 +70,15 @@ function StartPage(): React.JSX.Element {
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
-        {SUGGESTIONS.map((site) => (
-          <Button key={site} variant="secondary" size="sm" onClick={() => newTab(toUrl(site))}>
-            {site}
-            <ArrowUpRight className="size-3.5 opacity-60" />
-          </Button>
-        ))}
+          {SUGGESTIONS.map((site) => (
+            <Button key={site} variant="secondary" size="sm" onClick={() => newTab(toUrl(site))}>
+              {site}
+              <ArrowUpRight className="size-3.5 opacity-60" />
+            </Button>
+          ))}
+        </div>
       </div>
-    </div>
+    </Backdrop>
   )
 }
 

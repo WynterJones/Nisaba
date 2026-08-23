@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import wynter from '@/assets/wynter.png'
 import type { AgentInstallation } from '../../../preload'
 
 function Section({
@@ -204,6 +205,19 @@ export default function Settings(): React.JSX.Element {
           >
             View the source
           </Button>
+
+          <div className="flex items-center gap-3 pt-1">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+              Made by
+            </span>
+            <button
+              onClick={() => window.api.browser.openExternal('https://wynter.ai')}
+              title="wynter.ai"
+              className="transition-opacity hover:opacity-80"
+            >
+              <img src={wynter} alt="Wynter.ai" className="h-7 select-none" draggable={false} />
+            </button>
+          </div>
         </Section>
       </div>
     </ScrollArea>

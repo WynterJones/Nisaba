@@ -22,6 +22,10 @@ import type { ElementCandidate } from '../main/elements'
 import type { WorkspaceProbe } from '../main/workspaces'
 import type { PinContext } from '../main/audit'
 import type { Needle, SourceMatch } from '../main/sourcemap'
+import type { SimilarHit } from '../main/similarity'
+import type { Check, PreviewState } from '../main/verify'
+
+export type { Check, PreviewState, SimilarHit }
 
 export type { PinContext, SourceMatch }
 
@@ -154,6 +158,31 @@ const api = {
       suggestedRoot: string | null
     ): Promise<{ path: string; tasks: number; shots: number } | null> =>
       invoke('audit:export', record, suggestedRoot)
+  },
+
+  similar: {
+    index: (): Promise<number> => invoke('similar:index'),
+    find: (input: { collection: Collection; id: string; limit?: number }): Promise<SimilarHit[]> =>
+      invoke('similar:find', input),
+    duplicates: (): Promise<[SimilarHit, SimilarHit][]> => invoke('similar:duplicates')
+  },
+
+  verify: {
+    suggest: (root: string): Promise<Check[]> => invoke('verify:suggest', root),
+    run: (input: { root: string; checks: Check[]; componentId: string }): Promise<Check[]> =>
+      invoke('verify:run', input),
+    onProgress: (cb: (p: { componentId: string; checks: Check[] }) => void): (() => void) =>
+      subscribe('verify:progress', cb)
+  },
+
+  preview: {
+    suggest: (root: string): Promise<string | null> => invoke('preview:suggest', root),
+    start: (input: { workspaceId: string; root: string; command: string }): Promise<PreviewState> =>
+      invoke('preview:start', input),
+    stop: (workspaceId: string): Promise<void> => invoke('preview:stop', workspaceId),
+    state: (workspaceId: string): Promise<PreviewState | null> => invoke('preview:state', workspaceId),
+    onState: (cb: (p: { workspaceId: string; state: PreviewState }) => void): (() => void) =>
+      subscribe('preview:state', cb)
   },
 
   library: {

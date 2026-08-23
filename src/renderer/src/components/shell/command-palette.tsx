@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Globe, Plus } from 'lucide-react'
-import { NAV } from '@/nav'
+import { NAV, isFlyout } from '@/nav'
 import { useApp } from '@/store'
 import { toUrl } from '@/components/shell/browser-toolbar'
 import {
@@ -79,7 +79,7 @@ export function CommandPalette(): React.JSX.Element {
 
         {NAV.map((group, i) => (
           <CommandGroup key={group.label ?? i} heading={group.label ?? 'Navigate'}>
-            {group.items.map((item) => (
+            {group.entries.flatMap((e) => (isFlyout(e) ? e.items : [e])).map((item) => (
               <CommandItem
                 key={item.to}
                 value={item.label}

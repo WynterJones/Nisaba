@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { activeView } from './browser'
 import { captureRect, pageMeta } from './capture'
-import { addRecord, newId, writeImage, type SectionRecord } from './library'
+import { addRecord, hashImage, newId, writeImage, type SectionRecord } from './library'
 
 export type SectionDraft = Omit<SectionRecord, 'id' | 'file' | 'createdAt'> & {
   preview: string
@@ -290,7 +290,8 @@ export function registerExtractIpc(): void {
       ...record,
       id,
       createdAt: Date.now(),
-      file: await writeImage('sections', id, png)
+      file: await writeImage('sections', id, png),
+      phash: await hashImage(png)
     })
   })
 }

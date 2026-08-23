@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { ChevronUp, FolderOpen, ScrollText, X } from 'lucide-react'
+import { ChevronUp, FolderOpen, ListTodo, ScrollText, X } from 'lucide-react'
 import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { STATUS_ICON, STATUS_TINT } from '@/routes/jobs'
@@ -51,14 +51,18 @@ export function JobsDrawer(): React.JSX.Element {
           </span>
         )}
 
-        {jobs.length > 0 && (
-          <button
-            onClick={() => navigate('/jobs')}
-            className="ml-auto text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            All jobs
-          </button>
-        )}
+        {/* Jobs lives here rather than in the sidebar — it belongs with the running work. */}
+        <button
+          onClick={() => navigate('/jobs')}
+          title="Every agent run, with its logs and output"
+          className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <ListTodo className="size-3.5" />
+          Jobs
+          {jobs.length > 0 && (
+            <span className="rounded bg-secondary px-1 tabular-nums">{jobs.length}</span>
+          )}
+        </button>
       </div>
 
       {jobsOpen && (

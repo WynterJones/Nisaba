@@ -1,6 +1,6 @@
 import { ipcMain, type WebContentsView } from 'electron'
 import { activeView } from './browser'
-import { addRecord, newId, writeImage, type CaptureRecord } from './library'
+import { addRecord, hashImage, newId, writeImage, type CaptureRecord } from './library'
 
 /** Full-page shots beyond this get clipped rather than exhausting memory. */
 const MAX_FULLPAGE_HEIGHT = 20000
@@ -172,7 +172,8 @@ export function registerCaptureIpc(): void {
       ...meta(view),
       width: shot.width,
       height: shot.height,
-      file: await writeImage('captures', id, shot.png)
+      file: await writeImage('captures', id, shot.png),
+      phash: await hashImage(shot.png)
     })
     flash(view, `Saved to Captures · ${kind}`)
     return record

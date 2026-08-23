@@ -129,8 +129,13 @@ export function registerExportIpc(): void {
       )
     }
 
-    const { writeImported } = await import('./library-import')
-    await writeImported(next)
+    const { put } = await import('./db')
+    for (const collection of [
+      'captures', 'sections', 'elements', 'designSystems',
+      'resources', 'components', 'templates'
+    ] as const) {
+      for (const record of next[collection]) put(collection, record as never)
+    }
     return { records: withFiles.length, files: restored }
   })
 }

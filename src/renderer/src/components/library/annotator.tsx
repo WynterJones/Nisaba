@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   ArrowUpRight,
   Circle,
@@ -147,15 +147,31 @@ export function Annotator({
   const boxRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
 
-  useEffect(() => {
+  /**
+   * The SVG draws in the surface's pixel space, so it has to know that size. A ResizeObserver
+   * alone was not enough — the surface has no height until the image decodes, so the image's
+   * own load event is the reliable trigger and the observer just keeps it honest afterwards.
+   */
+  const measure = useCallback((): void => {
     const el = boxRef.current
     if (!el) return
-    const measure = (): void => setSize({ w: el.clientWidth, h: el.scrollHeight })
+    const w = el.clientWidth
+    const h = el.clientHeight || el.scrollHeight
+    if (w > 0 && h > 0) setSize((current) => (current.w === w && current.h === h ? current : { w, h }))
+  }, [])
+
+  useLayoutEffect(() => {
     measure()
+    const el = boxRef.current
+    if (!el) return
     const observer = new ResizeObserver(measure)
     observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [measure])
 
   /** Everything is stored normalised, so a re-export at any size stays correct. */
   const at = (e: React.MouseEvent): { x: number; y: number } => {
@@ -347,7 +363,8 @@ export function Annotator({
           <img
             src={window.api.library.url(capture.file)}
             alt={capture.title}
-            className="w-full select-none"
+            onLoad={measure}
+            className="block w-full select-none"
             draggable={false}
           />
           <svg

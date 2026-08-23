@@ -55,6 +55,9 @@ type AppState = {
   toggleInspector: () => void
   toggleSidebar: () => void
   setJobsOpen: (open: boolean) => void
+  /** True only while the Browse route is showing its viewport host. */
+  viewportMounted: boolean
+  setViewportMounted: (mounted: boolean) => void
   /** Native views paint above all renderer HTML, so modals must hide them while open. */
   setOverlay: (open: boolean) => void
 }
@@ -77,9 +80,11 @@ export const useApp = create<AppState>((set, get) => ({
   inspectorTab: 'inspect',
   selection: null,
   picking: false,
-  inspectorOpen: true,
+  // Both panels start collapsed — the page is what you came for.
+  inspectorOpen: false,
   sidebarCollapsed: false,
-  jobsOpen: true,
+  jobsOpen: false,
+  viewportMounted: false,
 
   newTab: (url = '') => {
     const id = nextId()
@@ -115,10 +120,14 @@ export const useApp = create<AppState>((set, get) => ({
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setJobsOpen: (jobsOpen) => set({ jobsOpen }),
 
+  setViewportMounted: (viewportMounted) => set({ viewportMounted }),
+
   setOverlay: (open) => {
-    const { activeTabId } = get()
+    const { activeTabId, viewportMounted } = get()
     if (open) void window.api.browser.hideAll()
-    else if (activeTabId) void window.api.browser.activate(activeTabId)
+    // Only bring the page back if a viewport is actually on screen to hold it — otherwise
+    // it would paint over whichever library route the user is really looking at.
+    else if (activeTabId && viewportMounted) void window.api.browser.activate(activeTabId)
   }
 }))
 
