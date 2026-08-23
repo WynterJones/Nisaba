@@ -10,8 +10,8 @@ import { registerElementIpc } from './elements'
 import { registerWorkspaceIpc } from './workspaces'
 import { registerJobIpc, reconcileJobs } from './jobs'
 import { registerExportIpc } from './exporter'
-import { registerRedlineIpc } from './redline'
-import { registerRedlineExportIpc } from './redline-export'
+import { registerAuditIpc } from './audit'
+import { registerAuditExportIpc } from './audit-export'
 import { registerSourceMapIpc } from './sourcemap'
 import { writeFile } from 'fs/promises'
 import {
@@ -93,8 +93,8 @@ app.whenReady().then(() => {
   registerWorkspaceIpc()
   registerJobIpc()
   registerExportIpc()
-  registerRedlineIpc()
-  registerRedlineExportIpc()
+  registerAuditIpc()
+  registerAuditExportIpc()
   registerSourceMapIpc()
   void reconcileJobs()
 

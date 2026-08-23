@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import { useApp, useLibrary } from '@/store'
-import type { RedlinePin, RedlineRecord } from '../../preload'
+import type { AuditPin, AuditRecord } from '../../preload'
 
-type Draft = Omit<RedlineRecord, 'id' | 'createdAt'>
+type Draft = Omit<AuditRecord, 'id' | 'createdAt'>
 
-type RedlineState = {
+type AuditState = {
   active: boolean
   /** The pin whose note the panel is currently focused on. */
   focused: string | null
@@ -16,10 +16,10 @@ type RedlineState = {
 
   start: () => Promise<void>
   stop: () => Promise<void>
-  update: (id: string, patch: Partial<RedlinePin>) => void
+  update: (id: string, patch: Partial<AuditPin>) => void
   remove: (id: string) => Promise<void>
   focus: (id: string | null) => void
-  save: () => Promise<RedlineRecord | null>
+  save: () => Promise<AuditRecord | null>
   reset: () => void
 }
 
@@ -50,7 +50,7 @@ function guessWorkspaceRoot(url: string): string | null {
   return workspaces.find((w) => w.root.toLowerCase().includes(name))?.root ?? workspaces[0].root
 }
 
-export const useRedline = create<RedlineState>((set, get) => ({
+export const useAudit = create<AuditState>((set, get) => ({
   active: false,
   focused: null,
   draft: null,
@@ -59,7 +59,7 @@ export const useRedline = create<RedlineState>((set, get) => ({
 
   start: async () => {
     try {
-      const page = await window.api.redline.start()
+      const page = await window.api.audit.start()
       const root = guessWorkspaceRoot(page.url)
       set({
         active: true,
@@ -71,10 +71,10 @@ export const useRedline = create<RedlineState>((set, get) => ({
       // Each resolved pin immediately re-arms the next one, so the overlay stays live.
       void (async () => {
         while (get().active) {
-          const pin = await window.api.redline.next().catch(() => null)
+          const pin = await window.api.audit.next().catch(() => null)
           if (!pin || !get().active) break
 
-          const record: RedlinePin = {
+          const record: AuditPin = {
             id: pin.id,
             index: pin.index,
             note: '',
@@ -113,7 +113,7 @@ export const useRedline = create<RedlineState>((set, get) => ({
           const workspaceRoot = get().draft?.workspaceRoot
           if (workspaceRoot && pin.context.needles.length) {
             set((s) => ({ locating: [...s.locating, record.id] }))
-            void window.api.redline
+            void window.api.audit
               .locate(workspaceRoot, pin.context.needles)
               .then((candidates) => get().update(record.id, { candidates }))
               .catch(() => undefined)
@@ -128,7 +128,7 @@ export const useRedline = create<RedlineState>((set, get) => ({
 
   stop: async () => {
     set({ active: false, focused: null })
-    await window.api.redline.stop().catch(() => undefined)
+    await window.api.audit.stop().catch(() => undefined)
   },
 
   update: (id, patch) =>
@@ -139,7 +139,7 @@ export const useRedline = create<RedlineState>((set, get) => ({
     })),
 
   remove: async (id) => {
-    await window.api.redline.remove(id).catch(() => undefined)
+    await window.api.audit.remove(id).catch(() => undefined)
     set((s) => ({
       focused: s.focused === id ? null : s.focused,
       draft: s.draft
@@ -158,12 +158,12 @@ export const useRedline = create<RedlineState>((set, get) => ({
     if (!draft || draft.pins.length === 0) return null
 
     if (savedId) {
-      await window.api.library.patch('redlines', savedId, draft)
+      await window.api.library.patch('audits', savedId, draft)
       await useLibrary.getState().refresh()
-      return useLibrary.getState().redlines.find((r) => r.id === savedId) ?? null
+      return useLibrary.getState().audits.find((r) => r.id === savedId) ?? null
     }
 
-    const record = await window.api.library.add<RedlineRecord>('redlines', {
+    const record = await window.api.library.add<AuditRecord>('audits', {
       ...draft,
       id: `rl-${Date.now()}`,
       createdAt: Date.now()
@@ -176,7 +176,7 @@ export const useRedline = create<RedlineState>((set, get) => ({
   reset: () => set({ active: false, focused: null, draft: null, savedId: null, locating: [] })
 }))
 
-export const CATEGORIES: { id: RedlinePin['category']; label: string }[] = [
+export const CATEGORIES: { id: AuditPin['category']; label: string }[] = [
   { id: 'bug', label: 'Bug' },
   { id: 'layout', label: 'Layout' },
   { id: 'spacing', label: 'Spacing' },

@@ -12,22 +12,22 @@ import {
   Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { CATEGORIES, useRedline } from '@/redline'
+import { CATEGORIES, useAudit } from '@/audit'
 import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import type { RedlinePin } from '../../../../preload'
+import type { AuditPin } from '../../../../preload'
 
-const PRIORITIES: { id: RedlinePin['priority']; label: string; tint: string }[] = [
+const PRIORITIES: { id: AuditPin['priority']; label: string; tint: string }[] = [
   { id: 'high', label: 'High', tint: 'bg-rose-500/15 text-rose-300 ring-rose-500/40' },
   { id: 'normal', label: 'Normal', tint: 'bg-brand/15 text-brand-bright ring-brand/40' },
   { id: 'low', label: 'Low', tint: 'bg-secondary text-muted-foreground ring-border' }
 ]
 
-function PinCard({ pin }: { pin: RedlinePin }): React.JSX.Element {
-  const { focused, focus, update, remove, locating } = useRedline()
+function PinCard({ pin }: { pin: AuditPin }): React.JSX.Element {
+  const { focused, focus, update, remove, locating } = useAudit()
   const isFocused = focused === pin.id
   const ref = useRef<HTMLTextAreaElement>(null)
   const searching = locating.includes(pin.id)
@@ -107,7 +107,7 @@ function PinCard({ pin }: { pin: RedlinePin }): React.JSX.Element {
             value={pin.category}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) =>
-              update(pin.id, { category: e.target.value as RedlinePin['category'] })
+              update(pin.id, { category: e.target.value as AuditPin['category'] })
             }
             className="appearance-none rounded bg-secondary py-0.5 pl-1.5 pr-5 text-[10px] text-muted-foreground outline-none"
           >
@@ -145,8 +145,8 @@ function PinCard({ pin }: { pin: RedlinePin }): React.JSX.Element {
 }
 
 /** Replaces the inspector while a review is running — the notes have to live outside the page. */
-export function RedlinePanel(): React.JSX.Element {
-  const { active, draft, stop, start, save, reset } = useRedline()
+export function AuditPanel(): React.JSX.Element {
+  const { active, draft, stop, start, save, reset } = useAudit()
   const workspaces = useLibrary((s) => s.workspaces)
   const setOverlay = useApp((s) => s.setOverlay)
   const navigate = useNavigate()
@@ -167,9 +167,9 @@ export function RedlinePanel(): React.JSX.Element {
     }
     setOverlay(true)
     try {
-      const result = await window.api.redline.export(record, record.workspaceRoot)
+      const result = await window.api.audit.export(record, record.workspaceRoot)
       if (result) {
-        await window.api.library.patch('redlines', record.id, { exportedTo: result.path })
+        await window.api.library.patch('audits', record.id, { exportedTo: result.path })
         await useLibrary.getState().refresh()
         toast.success(`Exported ${result.tasks} tasks`, { description: result.path })
       }
@@ -186,7 +186,7 @@ export function RedlinePanel(): React.JSX.Element {
     <aside className="flex w-[340px] shrink-0 flex-col border-l border-border bg-sidebar">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
         <SquareDashedMousePointer className="size-4 text-brand-bright" />
-        <span className="text-sm font-semibold">Redline</span>
+        <span className="text-sm font-semibold">Audit</span>
         <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
           {pins.length}
         </span>
@@ -202,7 +202,7 @@ export function RedlinePanel(): React.JSX.Element {
         <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
           <Input
             value={draft.name}
-            onChange={(e) => useRedline.setState({ draft: { ...draft, name: e.target.value } })}
+            onChange={(e) => useAudit.setState({ draft: { ...draft, name: e.target.value } })}
             className="h-8 text-sm"
             placeholder="Review name"
           />
@@ -293,6 +293,6 @@ export function RedlinePanel(): React.JSX.Element {
   )
 }
 
-export function RedlineBusy(): React.JSX.Element {
+export function AuditBusy(): React.JSX.Element {
   return <Loader2 className="size-4 animate-spin" />
 }

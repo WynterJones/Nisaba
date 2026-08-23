@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { copyFile, mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { libraryRoot, type RedlinePin, type RedlineRecord } from './library'
+import { libraryRoot, type AuditPin, type AuditRecord } from './library'
 
 const CATEGORY_LABEL: Record<string, string> = {
   bug: 'bug',
@@ -28,13 +28,13 @@ function slug(value: string): string {
   )
 }
 
-function ordered(pins: RedlinePin[]): RedlinePin[] {
+function ordered(pins: AuditPin[]): AuditPin[] {
   return [...pins].sort(
     (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || a.rect.y - b.rect.y
   )
 }
 
-function taskMarkdown(pin: RedlinePin, n: number, shot: string | null): string {
+function taskMarkdown(pin: AuditPin, n: number, shot: string | null): string {
   const lines: string[] = []
   const title = pin.note.split('\n')[0].trim() || `${CATEGORY_LABEL[pin.category]} issue`
 
@@ -94,7 +94,7 @@ function taskMarkdown(pin: RedlinePin, n: number, shot: string | null): string {
   return lines.join('\n')
 }
 
-export function buildPlan(record: RedlineRecord): { tasks: string; plan: string; readme: string } {
+export function buildPlan(record: AuditRecord): { tasks: string; plan: string; readme: string } {
   const pins = ordered(record.pins)
   const date = new Date(record.createdAt).toISOString().slice(0, 10)
   const counts = pins.reduce<Record<string, number>>((acc, pin) => {
@@ -105,7 +105,7 @@ export function buildPlan(record: RedlineRecord): { tasks: string; plan: string;
   const tasks = [
     `# ${record.name}`,
     '',
-    `${pins.length} task${pins.length === 1 ? '' : 's'} redlined on ${record.url} — captured ${date} at ${record.viewport.width}×${record.viewport.height}.`,
+    `${pins.length} task${pins.length === 1 ? '' : 's'} audited on ${record.url} — captured ${date} at ${record.viewport.width}×${record.viewport.height}.`,
     '',
     `Priority: ${['high', 'normal', 'low']
       .filter((p) => counts[p])
@@ -132,7 +132,7 @@ export function buildPlan(record: RedlineRecord): { tasks: string; plan: string;
 
   const plan = JSON.stringify(
     {
-      format: 'nisaba-redline',
+      format: 'nisaba-audit',
       version: 1,
       name: record.name,
       url: record.url,
@@ -163,7 +163,7 @@ export function buildPlan(record: RedlineRecord): { tasks: string; plan: string;
   const readme = [
     `# ${record.name}`,
     '',
-    'A redline plan exported from Nisaba.',
+    'An audit plan exported from Nisaba.',
     '',
     '| File | What it is |',
     '| --- | --- |',
@@ -189,7 +189,7 @@ export function buildPlan(record: RedlineRecord): { tasks: string; plan: string;
   return { tasks, plan, readme }
 }
 
-async function writePlan(dest: string, record: RedlineRecord): Promise<{ path: string; tasks: number; shots: number }> {
+async function writePlan(dest: string, record: AuditRecord): Promise<{ path: string; tasks: number; shots: number }> {
   const { tasks, plan, readme } = buildPlan(record)
   await mkdir(join(dest, 'shots'), { recursive: true })
   await writeFile(join(dest, 'TASKS.md'), tasks)
@@ -208,15 +208,15 @@ async function writePlan(dest: string, record: RedlineRecord): Promise<{ path: s
   return { path: dest, tasks: record.pins.length, shots }
 }
 
-export function registerRedlineExportIpc(): void {
+export function registerAuditExportIpc(): void {
   ipcMain.handle(
-    'redline:export',
-    async (e, record: RedlineRecord, suggestedRoot: string | null) => {
+    'audit:export',
+    async (e, record: AuditRecord, suggestedRoot: string | null) => {
       const win = BrowserWindow.fromWebContents(e.sender)
-      const folder = `redline-${record.host.replace(/\W+/g, '-')}-${new Date(record.createdAt).toISOString().slice(0, 10)}`
+      const folder = `audit-${record.host.replace(/\W+/g, '-')}-${new Date(record.createdAt).toISOString().slice(0, 10)}`
 
       const result = await dialog.showSaveDialog(win!, {
-        title: 'Export redline plan',
+        title: 'Export audit plan',
         defaultPath: suggestedRoot ? join(suggestedRoot, folder) : folder,
         buttonLabel: 'Export plan'
       })

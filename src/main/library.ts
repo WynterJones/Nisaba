@@ -125,7 +125,7 @@ export type ComponentRecord = Base & {
 
 export type TemplateRecord = ComponentRecord & { pages: string[] }
 
-export type RedlinePin = {
+export type AuditPin = {
   id: string
   index: number
   note: string
@@ -168,14 +168,14 @@ export type RedlinePin = {
 }
 
 /** A review pass over one page: the notes, where they point, and what renders them. */
-export type RedlineRecord = Base & {
+export type AuditRecord = Base & {
   name: string
   url: string
   host: string
   title: string
   viewport: { width: number; height: number }
   workspaceRoot: string | null
-  pins: RedlinePin[]
+  pins: AuditPin[]
   exportedTo: string | null
 }
 
@@ -190,7 +190,7 @@ export type LibraryIndex = {
   jobs: JobRecord[]
   components: ComponentRecord[]
   templates: TemplateRecord[]
-  redlines: RedlineRecord[]
+  audits: AuditRecord[]
 }
 
 export type Collection = Exclude<keyof LibraryIndex, 'version'>
@@ -206,7 +206,7 @@ const EMPTY = (): LibraryIndex => ({
   jobs: [],
   components: [],
   templates: [],
-  redlines: []
+  audits: []
 })
 
 export function libraryRoot(): string {
@@ -228,9 +228,12 @@ let writing: Promise<void> = Promise.resolve()
 export async function readIndex(): Promise<LibraryIndex> {
   if (cache) return cache
   try {
-    const parsed = JSON.parse(await readFile(indexPath(), 'utf8')) as Partial<LibraryIndex>
-    // Older indexes only had captures and sections; fill in the rest.
-    cache = { ...EMPTY(), ...parsed, version: 2 }
+    const parsed = JSON.parse(await readFile(indexPath(), 'utf8')) as Partial<LibraryIndex> & {
+      redlines?: AuditRecord[]
+    }
+    // Older indexes only had captures and sections, and called audits "redlines".
+    const { redlines, ...rest } = parsed
+    cache = { ...EMPTY(), ...rest, audits: parsed.audits ?? redlines ?? [], version: 2 }
   } catch {
     cache = EMPTY()
   }

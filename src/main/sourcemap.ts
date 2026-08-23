@@ -60,7 +60,7 @@ async function walk(root: string): Promise<string[]> {
 }
 
 /**
- * Greps a workspace for the distinctive strings an element carries, so a redline task can
+ * Greps a workspace for the distinctive strings an element carries, so an audit task can
  * name the file that probably renders it. This is a hint with evidence attached, never a
  * claim — the exported plan tells the agent to verify before editing.
  */

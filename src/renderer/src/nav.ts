@@ -44,8 +44,8 @@ export const NAV: NavGroup[] = [
         blurb: 'Pages worth returning to, with tags, collections and notes.'
       },
       {
-        to: '/redlines',
-        label: 'Redlines',
+        to: '/audits',
+        label: 'Audits',
         icon: PenLine,
         blurb: 'Page reviews pinned to real elements, exported as a task plan an agent can work.'
       },

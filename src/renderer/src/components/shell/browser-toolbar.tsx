@@ -29,7 +29,7 @@ import {
   profileDesign,
   startExtract
 } from '@/actions'
-import { useRedline } from '@/redline'
+import { useAudit } from '@/audit'
 import { Compare } from '@/components/shell/compare'
 import { ElementPicker } from '@/components/shell/element-picker'
 import { useActiveTab, useApp } from '@/store'
@@ -138,7 +138,7 @@ export function BrowserToolbar(): React.JSX.Element {
     useApp()
   const [candidates, setCandidates] = useState<ElementCandidate[] | null>(null)
   const [comparing, setComparing] = useState(false)
-  const redline = useRedline()
+  const audit = useAudit()
   const [scanning, setScanning] = useState(false)
   const disabled = !tab
 
@@ -266,16 +266,16 @@ export function BrowserToolbar(): React.JSX.Element {
 
         <button
           disabled={disabled}
-          onClick={() => (redline.active ? void redline.stop() : void redline.start())}
+          onClick={() => (audit.active ? void audit.stop() : void audit.start())}
           title={
-            redline.active
-              ? 'Finish redlining'
-              : 'Redline this page — pin notes to elements and export a task plan'
+            audit.active
+              ? 'Finish the audit'
+              : 'Audit this page — pin notes to elements and export a task plan'
           }
-          className={toolClass(redline.active)}
+          className={toolClass(audit.active)}
         >
           <PenLine className="size-4" />
-          {redline.active ? `Redlining · ${redline.draft?.pins.length ?? 0}` : 'Redline'}
+          {audit.active ? `Auditing · ${audit.draft?.pins.length ?? 0}` : 'Audit'}
         </button>
 
         <button

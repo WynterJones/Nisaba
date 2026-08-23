@@ -46,12 +46,12 @@ sibling. Click and Nisaba keeps a robust selector, sanitized HTML, computed styl
 properties, fonts, palette, assets and accessibility metadata — plus framework detection with a
 confidence score and the evidence behind it.
 
-**Redline** — review a page, live or on localhost, by clicking your way down it and pinning a note
-to each thing that needs fixing. Every pin remembers the element, its computed styles and where it
+**Audit** — review a page, live or on localhost, by clicking your way down it and pinning a note to
+each thing that needs fixing. Every pin remembers the element, its computed styles and where it
 sits on the page, then greps your workspace to find the file that renders it. Export the lot as a
 folder of tasks an agent can work straight through.
 
-<img src="docs/redline.png" alt="Nisaba redlining a localhost page, with the review panel open" width="100%">
+<img src="docs/audit.png" alt="Nisaba auditing a localhost page, with the review panel open" width="100%">
 
 **Profile** — measure the colours, type scale, spacing, radii, shadows, breakpoints and `:root`
 variables a page actually uses, into an editable `design.md` and `tokens.json`. Observed values and
@@ -64,7 +64,7 @@ rules for.
 **Compare** — two captures side by side, overlaid with an opacity slider, or as a pixel difference
 computed locally, with a percentage-changed readout.
 
-**Organize** — Captures, Sections, Elements, Design Systems, Redlines, Resources, Sites and
+**Organize** — Captures, Sections, Elements, Design Systems, Audits, Resources, Sites and
 Bookmarks, all searchable, filterable and on your own disk. Export the whole library as a plain
 folder and import it back with IDs and relationships intact.
 
@@ -116,7 +116,7 @@ src/
     capture.ts     Viewport, full-page (CDP) and region screenshots
     extract.ts     The in-page selection overlay and artifact collector
     design.ts      Whole-page token measurement and design.md generation
-    redline.ts     The page-review overlay and pin context collector
+    audit.ts       The page-review overlay and pin context collector
     sourcemap.ts   Grepping a workspace to find what renders an element
     elements.ts    Primitive detection and per-state capture
     workspaces.ts  Folder selection, probing and the write boundary

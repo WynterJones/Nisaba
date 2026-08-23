@@ -7,7 +7,7 @@ import type {
   DesignSystemRecord,
   ElementRecord,
   JobRecord,
-  RedlineRecord,
+  AuditRecord,
   ResourceRecord,
   SectionDraft,
   SectionRecord,
@@ -185,7 +185,7 @@ type LibraryState = {
   jobs: JobRecord[]
   components: ComponentRecord[]
   templates: TemplateRecord[]
-  redlines: RedlineRecord[]
+  audits: AuditRecord[]
   loaded: boolean
   refresh: () => Promise<void>
   remove: (kind: Collection, id: string) => Promise<void>
@@ -201,7 +201,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   jobs: [],
   components: [],
   templates: [],
-  redlines: [],
+  audits: [],
   loaded: false,
 
   refresh: async () => {

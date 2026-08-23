@@ -9,8 +9,8 @@ import type {
   LibraryIndex,
   JobEvent,
   JobRecord,
-  RedlinePin,
-  RedlineRecord,
+  AuditPin,
+  AuditRecord,
   ResourceRecord,
   SectionRecord,
   TemplateRecord,
@@ -20,7 +20,7 @@ import type { SectionDraft } from '../main/extract'
 import type { AgentInstallation } from '../main/agents'
 import type { ElementCandidate } from '../main/elements'
 import type { WorkspaceProbe } from '../main/workspaces'
-import type { PinContext } from '../main/redline'
+import type { PinContext } from '../main/audit'
 import type { Needle, SourceMatch } from '../main/sourcemap'
 
 export type { PinContext, SourceMatch }
@@ -37,8 +37,8 @@ export type {
   JobEvent,
   JobRecord,
   LibraryIndex,
-  RedlinePin,
-  RedlineRecord,
+  AuditPin,
+  AuditRecord,
   ResourceRecord,
   SectionDraft,
   SectionRecord,
@@ -140,20 +140,20 @@ const api = {
       subscribe('jobs:done', cb)
   },
 
-  redline: {
-    start: (): Promise<{ url: string; title: string; host: string }> => invoke('redline:start'),
+  audit: {
+    start: (): Promise<{ url: string; title: string; host: string }> => invoke('audit:start'),
     /** Resolves with the next pin the user drops, or null when they finish. */
     next: (): Promise<{ id: string; index: number; context: PinContext; shot: string | null } | null> =>
-      invoke('redline:next'),
-    remove: (id: string): Promise<boolean> => invoke('redline:remove', id),
-    stop: (): Promise<void> => invoke('redline:stop'),
+      invoke('audit:next'),
+    remove: (id: string): Promise<boolean> => invoke('audit:remove', id),
+    stop: (): Promise<void> => invoke('audit:stop'),
     locate: (root: string, needles: Needle[]): Promise<SourceMatch[]> =>
       invoke('sourcemap:locate', root, needles),
     export: (
-      record: RedlineRecord,
+      record: AuditRecord,
       suggestedRoot: string | null
     ): Promise<{ path: string; tasks: number; shots: number } | null> =>
-      invoke('redline:export', record, suggestedRoot)
+      invoke('audit:export', record, suggestedRoot)
   },
 
   library: {

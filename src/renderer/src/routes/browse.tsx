@@ -3,8 +3,8 @@ import { ArrowUpRight, Compass, MousePointerClick, X } from 'lucide-react'
 import { cancelExtract } from '@/actions'
 import { BrowserToolbar, toUrl } from '@/components/shell/browser-toolbar'
 import { Inspector } from '@/components/shell/inspector'
-import { RedlinePanel } from '@/components/shell/redline-panel'
-import { useRedline } from '@/redline'
+import { AuditPanel } from '@/components/shell/audit-panel'
+import { useAudit } from '@/audit'
 import { useActiveTab, useApp } from '@/store'
 import { Button } from '@/components/ui/button'
 
@@ -77,7 +77,7 @@ export default function Browse(): React.JSX.Element {
   const hasTab = useApp((s) => s.tabs.length > 0)
   const picking = useApp((s) => s.picking)
   const inspectorOpen = useApp((s) => s.inspectorOpen)
-  const reviewing = useRedline((s) => s.active || (s.draft?.pins.length ?? 0) > 0)
+  const reviewing = useAudit((s) => s.active || (s.draft?.pins.length ?? 0) > 0)
   const tab = useActiveTab()
 
   return (
@@ -101,7 +101,7 @@ export default function Browse(): React.JSX.Element {
       )}
       <div className="flex min-h-0 flex-1">
         {hasTab ? <ViewportHost /> : <StartPage />}
-        {reviewing ? <RedlinePanel /> : inspectorOpen && <Inspector />}
+        {reviewing ? <AuditPanel /> : inspectorOpen && <Inspector />}
       </div>
       {tab?.error && (
         <div className="shrink-0 border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">

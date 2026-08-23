@@ -21,7 +21,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import type { RedlineRecord } from '../../../preload'
+import type { AuditRecord } from '../../../preload'
 
 const PRIORITY_TINT: Record<string, string> = {
   high: 'bg-rose-500/15 text-rose-300',
@@ -33,7 +33,7 @@ function Detail({
   record,
   onClose
 }: {
-  record: RedlineRecord
+  record: AuditRecord
   onClose: () => void
 }): React.JSX.Element {
   return (
@@ -92,9 +92,9 @@ function Detail({
           )}
           <Button
             onClick={async () => {
-              const result = await window.api.redline.export(record, record.workspaceRoot)
+              const result = await window.api.audit.export(record, record.workspaceRoot)
               if (result) {
-                await window.api.library.patch('redlines', record.id, { exportedTo: result.path })
+                await window.api.library.patch('audits', record.id, { exportedTo: result.path })
                 await useLibrary.getState().refresh()
                 toast.success(`Exported ${result.tasks} tasks`, { description: result.path })
               }
@@ -109,23 +109,23 @@ function Detail({
   )
 }
 
-export default function Redlines(): React.JSX.Element {
-  const { redlines, remove } = useLibrary()
+export default function Audits(): React.JSX.Element {
+  const { audits, remove } = useLibrary()
   const newTab = useApp((s) => s.newTab)
   const navigate = useNavigate()
-  const [open, setOpen] = useState<RedlineRecord | null>(null)
+  const [open, setOpen] = useState<AuditRecord | null>(null)
 
   return (
     <>
       <LibraryFrame
         icon={PenLine}
-        title="Redlines"
-        items={redlines}
+        title="Audits"
+        items={audits}
         search={(r) => `${r.name} ${r.url} ${r.pins.map((p) => p.note).join(' ')}`}
         groupBy={{ label: 'Site', of: (r) => r.host }}
         nameOf={(r) => r.name}
         emptyTitle="No reviews yet"
-        emptyBlurb="Open a page — live or localhost — hit Redline, and click your way down it noting what needs fixing. Nisaba pins each note to the element, finds the file that renders it, and exports the lot as a task plan an agent can work through."
+        emptyBlurb="Open a page — live or localhost — hit Audit, and click your way down it noting what needs fixing. Nisaba pins each note to the element, finds the file that renders it, and exports the lot as a task plan an agent can work through."
       >
         {(rows) => (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-4 p-5">
@@ -161,7 +161,7 @@ export default function Redlines(): React.JSX.Element {
                         size="icon-sm"
                         title="Delete review"
                         className="hover:text-destructive"
-                        onClick={() => void remove('redlines', record.id)}
+                        onClick={() => void remove('audits', record.id)}
                       >
                         <Trash2 className="size-3.5" />
                       </Button>

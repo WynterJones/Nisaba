@@ -30,13 +30,13 @@ export type PinContext = {
  * The page still cannot call anything — main asks it for the next pin and gets data back.
  */
 const INSTALL = `(() => {
-  if (window.__nisabaRedline) { window.__nisabaRedline.resume(); return true }
+  if (window.__nisabaAudit) { window.__nisabaAudit.resume(); return true }
 
   const NS = {}
   const state = { pins: [], waiters: [], stopped: false, hover: null }
 
   const layer = document.createElement('div')
-  layer.id = '__nisaba_redline__'
+  layer.id = '__nisaba_audit__'
   layer.style.cssText = 'position:fixed;inset:0;z-index:2147483646;pointer-events:none'
 
   const outline = document.createElement('div')
@@ -46,7 +46,7 @@ const INSTALL = `(() => {
   label.style.cssText = 'position:fixed;pointer-events:none;background:#7928db;color:#fff;font:600 11px/1.5 ui-monospace,monospace;padding:3px 7px;border-radius:5px;white-space:nowrap;display:none'
 
   const hint = document.createElement('div')
-  hint.innerHTML = 'Redline · click anything to pin a note &nbsp;·&nbsp; <b>Esc</b> to finish'
+  hint.innerHTML = 'Audit · click anything to pin a note &nbsp;·&nbsp; <b>Esc</b> to finish'
   hint.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0d0d0f;color:#e6e6ea;border:1px solid #7928db;border-radius:9px;padding:8px 14px;font:500 13px system-ui;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.5)'
 
   layer.append(outline, label, hint)
@@ -275,6 +275,14 @@ const INSTALL = `(() => {
 
   NS.resume = () => { state.stopped = false; layer.style.display = 'block' }
 
+  /** The pin screenshot must not contain Nisaba's own markers, so hide them for a frame. */
+  NS.hide = () => new Promise((resolve) => {
+    layer.style.visibility = 'hidden'
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))
+  })
+
+  NS.show = () => { layer.style.visibility = 'visible'; return true }
+
   NS.stop = () => {
     state.stopped = true
     document.removeEventListener('mousemove', onMove, true)
@@ -283,53 +291,61 @@ const INSTALL = `(() => {
     window.removeEventListener('scroll', place, true)
     window.removeEventListener('resize', place, true)
     layer.remove()
-    delete window.__nisabaRedline
+    delete window.__nisabaAudit
     state.waiters.splice(0).forEach((w) => w(null))
   }
 
-  window.__nisabaRedline = NS
+  window.__nisabaAudit = NS
   return true
 })()`
 
-export function registerRedlineIpc(): void {
+export function registerAuditIpc(): void {
   const view = (): NonNullable<ReturnType<typeof activeView>> => {
     const found = activeView()
-    if (!found) throw new Error('Open a page before redlining it')
+    if (!found) throw new Error('Open a page before auditing it')
     return found
   }
 
-  ipcMain.handle('redline:start', async () => {
+  ipcMain.handle('audit:start', async () => {
     const target = view()
     await target.webContents.executeJavaScript(INSTALL, true)
     return pageMeta(target)
   })
 
   /** Resolves with the next pin the user drops, or null once they finish. */
-  ipcMain.handle('redline:next', async () => {
+  ipcMain.handle('audit:next', async () => {
     const target = view()
     const pin = (await target.webContents.executeJavaScript(
-      'window.__nisabaRedline ? window.__nisabaRedline.next() : null',
+      'window.__nisabaAudit ? window.__nisabaAudit.next() : null',
       true
     )) as { id: string; index: number; context: PinContext } | null
     if (!pin) return null
 
+    const run = (code: string): Promise<unknown> =>
+      target.webContents.executeJavaScript(code, true).catch(() => undefined)
+
+    await run('window.__nisabaAudit && window.__nisabaAudit.hide()')
+    // The page has painted, but capturePage reads the compositor, which lags a frame or two.
+    await new Promise((resolve) => setTimeout(resolve, 140))
     const png = await captureRect(pin.context.rect).catch(() => null)
-    const shot = png ? await writeImage('redlines', newId(), png) : null
+    await run('window.__nisabaAudit && window.__nisabaAudit.show()')
+
+    const shot = png ? await writeImage('audits', newId(), png) : null
     return { ...pin, shot }
   })
 
-  ipcMain.handle('redline:remove', async (_e, id: string) =>
+  ipcMain.handle('audit:remove', async (_e, id: string) =>
     view().webContents.executeJavaScript(
-      `window.__nisabaRedline ? window.__nisabaRedline.remove(${JSON.stringify(id)}) : false`,
+      `window.__nisabaAudit ? window.__nisabaAudit.remove(${JSON.stringify(id)}) : false`,
       true
     )
   )
 
-  ipcMain.handle('redline:stop', async () => {
+  ipcMain.handle('audit:stop', async () => {
     const found = activeView()
     if (!found) return
     await found.webContents
-      .executeJavaScript('window.__nisabaRedline && window.__nisabaRedline.stop()', true)
+      .executeJavaScript('window.__nisabaAudit && window.__nisabaAudit.stop()', true)
       .catch(() => undefined)
   })
 }
