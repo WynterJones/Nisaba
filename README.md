@@ -178,3 +178,11 @@ what you found doesn't get lost.
 ## License
 
 MIT © [Wynter Jones](https://github.com/WynterJones)
+
+<div align="center">
+
+<img src="docs/haul.png" alt="Two fox spies making off with a sack of captured web pages" width="100%">
+
+<sub>Off they go with the evidence.</sub>
+
+</div>
