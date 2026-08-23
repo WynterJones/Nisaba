@@ -12,7 +12,8 @@ import {
   XCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useLibrary } from '@/store'
+import { useNavigate } from 'react-router'
+import { useApp, useLibrary } from '@/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -54,6 +55,14 @@ export default function Settings(): React.JSX.Element {
   const [root, setRoot] = useState('')
   const [agents, setAgents] = useState<AgentInstallation[] | null>(null)
   const { captures, sections, elements, designSystems, refresh } = useLibrary()
+  const newTab = useApp((s) => s.newTab)
+  const navigate = useNavigate()
+
+  /** Links open in Nisaba's own browser — that is the whole point of the app. */
+  const openHere = (url: string): void => {
+    newTab(url)
+    void navigate('/browse')
+  }
 
   const exportAll = async (): Promise<void> => {
     try {
@@ -201,7 +210,7 @@ export default function Settings(): React.JSX.Element {
             variant="secondary"
             size="sm"
             className="self-start"
-            onClick={() => window.api.browser.openExternal('https://github.com/WynterJones/Nisaba')}
+            onClick={() => openHere('https://github.com/WynterJones/Nisaba')}
           >
             View the source
           </Button>
@@ -211,7 +220,7 @@ export default function Settings(): React.JSX.Element {
               Made by
             </span>
             <button
-              onClick={() => window.api.browser.openExternal('https://wynter.ai')}
+              onClick={() => openHere('https://wynter.ai')}
               title="wynter.ai"
               className="transition-opacity hover:opacity-80"
             >

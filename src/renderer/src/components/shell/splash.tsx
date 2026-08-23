@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
 import logo from '@/assets/logo.png'
 import wynter from '@/assets/wynter.png'
 import { DotField } from '@/components/canvas/dot-field'
+import { useApp } from '@/store'
 import { cn } from '@/lib/utils'
 
 const SHOW_MS = 2100
@@ -14,6 +16,8 @@ const FADE_MS = 420
 export function Splash(): React.JSX.Element | null {
   const [version, setVersion] = useState('')
   const [phase, setPhase] = useState<'in' | 'out' | 'gone'>('in')
+  const newTab = useApp((s) => s.newTab)
+  const navigate = useNavigate()
 
   useEffect(() => {
     void window.api.getVersion().then(setVersion)
@@ -59,7 +63,9 @@ export function Splash(): React.JSX.Element | null {
         <button
           onClick={(e) => {
             e.stopPropagation()
-            window.api.browser.openExternal('https://wynter.ai')
+            newTab('https://wynter.ai')
+            setPhase('out')
+            void navigate('/browse')
           }}
           className="transition-opacity hover:opacity-80"
           title="wynter.ai"

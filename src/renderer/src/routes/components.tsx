@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
+  Check as CheckIcon,
   CheckCircle2,
   CircleSlash,
+  Copy,
   FileCode2,
   FolderOpen,
   Frame,
@@ -62,6 +64,7 @@ function Detail({
   const [file, setFile] = useState<string | null>(null)
   const [body, setBody] = useState('')
   const [checks, setChecks] = useState<Check[]>(record.checks ?? [])
+  const [copied, setCopied] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const [starting, setStarting] = useState(false)
@@ -295,10 +298,28 @@ function Detail({
             Open workspace
           </Button>
           {file && (
-            <Button variant="secondary" onClick={() => window.api.jobs.open(record.dir, file)}>
-              <FileCode2 className="size-4" />
-              Open in editor
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void navigator.clipboard.writeText(body)
+                  setCopied(true)
+                  toast.success(`Copied ${file}`)
+                  setTimeout(() => setCopied(false), 1400)
+                }}
+              >
+                {copied ? (
+                  <CheckIcon className="size-4 text-emerald-400" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+                Copy file
+              </Button>
+              <Button variant="secondary" onClick={() => window.api.jobs.open(record.dir, file)}>
+                <FileCode2 className="size-4" />
+                Open in editor
+              </Button>
+            </>
           )}
         </div>
       </DialogContent>
@@ -337,7 +358,7 @@ function Grid({ kind }: { kind: 'components' | 'templates' }): React.JSX.Element
               >
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <button onClick={() => setOpen(record)} className="text-left">
+                    <button onClick={() => setOpen(record)} className="block w-full text-left">
                       <p className="truncate text-sm font-medium">{record.name}</p>
                     </button>
                     <p className="truncate text-xs text-muted-foreground">

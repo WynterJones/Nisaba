@@ -26,9 +26,18 @@ export type CaptureRecord = Base & {
 
 export type Annotation =
   | { id: string; type: 'rect' | 'ellipse' | 'highlight' | 'blur'; rect: Rect; color: string }
-  | { id: string; type: 'arrow' | 'line'; from: { x: number; y: number }; to: { x: number; y: number }; color: string }
-  | { id: string; type: 'text'; at: { x: number; y: number }; text: string; color: string }
+  | {
+      id: string
+      type: 'arrow' | 'line'
+      from: { x: number; y: number }
+      to: { x: number; y: number }
+      color: string
+    }
+  /** Freehand stroke, sampled while dragging. */
+  | { id: string; type: 'pen'; points: { x: number; y: number }[]; color: string }
   | { id: string; type: 'callout'; at: { x: number; y: number }; index: number; color: string }
+  /** Retired tool; kept so annotations saved before it was removed still render. */
+  | { id: string; type: 'text'; at: { x: number; y: number }; text: string; color: string }
 
 export type SectionRecord = Base & {
   /** 64-bit dHash of `file`, for similarity search. */

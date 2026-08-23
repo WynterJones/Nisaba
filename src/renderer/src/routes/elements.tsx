@@ -1,14 +1,21 @@
 import { useState } from 'react'
 import { Blocks, ExternalLink, Trash2 } from 'lucide-react'
+import { ElementViewer } from '@/components/library/element-viewer'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
-import { useLibrary } from '@/store'
+import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { ElementRecord } from '../../../preload'
 
 /** One saved primitive plus every interaction state Nisaba could capture for it. */
-function ElementCard({ record }: { record: ElementRecord }): React.JSX.Element {
+function ElementCard({
+  record,
+  onOpen
+}: {
+  record: ElementRecord
+  onOpen: (record: ElementRecord) => void
+}): React.JSX.Element {
   const remove = useLibrary((s) => s.remove)
   const [state, setState] = useState<string>('default')
 
@@ -17,14 +24,18 @@ function ElementCard({ record }: { record: ElementRecord }): React.JSX.Element {
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-brand/50">
-      <div className="grid min-h-24 place-items-center overflow-auto bg-[repeating-conic-gradient(#17171b_0%_25%,#121214_0%_50%)] bg-[length:16px_16px] p-4">
+      <button
+        onClick={() => onOpen(record)}
+        title="Open this element"
+        className="grid min-h-24 place-items-center overflow-auto bg-[repeating-conic-gradient(#17171b_0%_25%,#121214_0%_50%)] bg-[length:16px_16px] p-4"
+      >
         <img
           src={window.api.library.url(shown.file)}
           alt={record.label}
           loading="lazy"
           className="max-w-full"
         />
-      </div>
+      </button>
 
       {frames.length > 1 && (
         <div className="flex flex-wrap gap-1 border-t border-border px-2 py-1.5">
@@ -47,7 +58,9 @@ function ElementCard({ record }: { record: ElementRecord }): React.JSX.Element {
 
       <div className="flex items-start gap-2 border-t border-border p-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{record.label}</p>
+          <button onClick={() => onOpen(record)} className="block w-full text-left">
+            <p className="truncate text-sm font-medium">{record.label}</p>
+          </button>
           <p className="truncate text-xs text-muted-foreground">
             {record.host} · {timeAgo(record.createdAt)}
           </p>
@@ -78,12 +91,30 @@ function ElementCard({ record }: { record: ElementRecord }): React.JSX.Element {
 
 export default function Elements(): React.JSX.Element {
   const elements = useLibrary((s) => s.elements)
+  const setOverlay = useApp((s) => s.setOverlay)
   const [category, setCategory] = useState<string | null>(null)
+  const [open, setOpen] = useState<ElementRecord | null>(null)
+
+  const openViewer = (record: ElementRecord): void => {
+    setOverlay(true)
+    setOpen(record)
+  }
+  const closeViewer = (): void => {
+    setOverlay(false)
+    setOpen(null)
+  }
 
   const categories = [...new Set(elements.map((e) => e.category))].sort()
   const shown = category ? elements.filter((e) => e.category === category) : elements
 
   return (
+    <>
+      {open && (
+        <ElementViewer
+          record={elements.find((e) => e.id === open.id) ?? open}
+          onClose={closeViewer}
+        />
+      )}
     <LibraryFrame
       icon={Blocks}
       title="Elements"
@@ -140,7 +171,7 @@ export default function Elements(): React.JSX.Element {
                 {rows
                   .filter((r) => r.category === group)
                   .map((record) => (
-                    <ElementCard key={record.id} record={record} />
+                    <ElementCard key={record.id} record={record} onOpen={openViewer} />
                   ))}
               </div>
             </section>
@@ -148,5 +179,6 @@ export default function Elements(): React.JSX.Element {
         </div>
       )}
     </LibraryFrame>
+    </>
   )
 }
