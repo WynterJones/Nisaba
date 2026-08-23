@@ -9,6 +9,8 @@ import type {
   LibraryIndex,
   JobEvent,
   JobRecord,
+  RedlinePin,
+  RedlineRecord,
   ResourceRecord,
   SectionRecord,
   TemplateRecord,
@@ -18,6 +20,10 @@ import type { SectionDraft } from '../main/extract'
 import type { AgentInstallation } from '../main/agents'
 import type { ElementCandidate } from '../main/elements'
 import type { WorkspaceProbe } from '../main/workspaces'
+import type { PinContext } from '../main/redline'
+import type { Needle, SourceMatch } from '../main/sourcemap'
+
+export type { PinContext, SourceMatch }
 
 export type {
   AgentInstallation,
@@ -31,6 +37,8 @@ export type {
   JobEvent,
   JobRecord,
   LibraryIndex,
+  RedlinePin,
+  RedlineRecord,
   ResourceRecord,
   SectionDraft,
   SectionRecord,
@@ -130,6 +138,22 @@ const api = {
       subscribe('jobs:event', cb),
     onDone: (cb: (payload: { id: string; status: JobRecord['status'] }) => void): (() => void) =>
       subscribe('jobs:done', cb)
+  },
+
+  redline: {
+    start: (): Promise<{ url: string; title: string; host: string }> => invoke('redline:start'),
+    /** Resolves with the next pin the user drops, or null when they finish. */
+    next: (): Promise<{ id: string; index: number; context: PinContext; shot: string | null } | null> =>
+      invoke('redline:next'),
+    remove: (id: string): Promise<boolean> => invoke('redline:remove', id),
+    stop: (): Promise<void> => invoke('redline:stop'),
+    locate: (root: string, needles: Needle[]): Promise<SourceMatch[]> =>
+      invoke('sourcemap:locate', root, needles),
+    export: (
+      record: RedlineRecord,
+      suggestedRoot: string | null
+    ): Promise<{ path: string; tasks: number; shots: number } | null> =>
+      invoke('redline:export', record, suggestedRoot)
   },
 
   library: {

@@ -14,6 +14,7 @@ import {
   RotateCw,
   Blocks,
   Palette,
+  PenLine,
   Sparkles,
   SquareDashedMousePointer,
   TriangleAlert,
@@ -28,6 +29,7 @@ import {
   profileDesign,
   startExtract
 } from '@/actions'
+import { useRedline } from '@/redline'
 import { Compare } from '@/components/shell/compare'
 import { ElementPicker } from '@/components/shell/element-picker'
 import { useActiveTab, useApp } from '@/store'
@@ -136,6 +138,7 @@ export function BrowserToolbar(): React.JSX.Element {
     useApp()
   const [candidates, setCandidates] = useState<ElementCandidate[] | null>(null)
   const [comparing, setComparing] = useState(false)
+  const redline = useRedline()
   const [scanning, setScanning] = useState(false)
   const disabled = !tab
 
@@ -259,6 +262,20 @@ export function BrowserToolbar(): React.JSX.Element {
             <SquareDashedMousePointer className="size-4" />
           )}
           {picking ? 'Picking…' : 'Extract'}
+        </button>
+
+        <button
+          disabled={disabled}
+          onClick={() => (redline.active ? void redline.stop() : void redline.start())}
+          title={
+            redline.active
+              ? 'Finish redlining'
+              : 'Redline this page — pin notes to elements and export a task plan'
+          }
+          className={toolClass(redline.active)}
+        >
+          <PenLine className="size-4" />
+          {redline.active ? `Redlining · ${redline.draft?.pins.length ?? 0}` : 'Redline'}
         </button>
 
         <button

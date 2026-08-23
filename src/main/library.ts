@@ -125,6 +125,60 @@ export type ComponentRecord = Base & {
 
 export type TemplateRecord = ComponentRecord & { pages: string[] }
 
+export type RedlinePin = {
+  id: string
+  index: number
+  note: string
+  category:
+    | 'bug'
+    | 'layout'
+    | 'spacing'
+    | 'copy'
+    | 'typography'
+    | 'color'
+    | 'a11y'
+    | 'responsive'
+    | 'content'
+    | 'other'
+  priority: 'high' | 'normal' | 'low'
+  status: 'open' | 'done'
+  selector: string
+  fallbacks: string[]
+  tag: string
+  rect: Rect
+  text: string
+  html: string
+  styles: Record<string, string>
+  classes: string[]
+  elementId: string | null
+  testId: string | null
+  ariaLabel: string | null
+  heading: string | null
+  landmark: string | null
+  /** Grep hits in the workspace that probably render this element. */
+  candidates: {
+    file: string
+    line: number
+    needle: string
+    kind: string
+    confidence: number
+    snippet: string
+  }[]
+  shot: string | null
+}
+
+/** A review pass over one page: the notes, where they point, and what renders them. */
+export type RedlineRecord = Base & {
+  name: string
+  url: string
+  host: string
+  title: string
+  viewport: { width: number; height: number }
+  workspaceRoot: string | null
+  pins: RedlinePin[]
+  exportedTo: string | null
+}
+
 export type LibraryIndex = {
   version: 2
   captures: CaptureRecord[]
@@ -136,6 +190,7 @@ export type LibraryIndex = {
   jobs: JobRecord[]
   components: ComponentRecord[]
   templates: TemplateRecord[]
+  redlines: RedlineRecord[]
 }
 
 export type Collection = Exclude<keyof LibraryIndex, 'version'>
@@ -150,7 +205,8 @@ const EMPTY = (): LibraryIndex => ({
   workspaces: [],
   jobs: [],
   components: [],
-  templates: []
+  templates: [],
+  redlines: []
 })
 
 export function libraryRoot(): string {

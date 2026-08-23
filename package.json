@@ -1,7 +1,7 @@
 {
   "name": "nisaba",
-  "version": "0.0.1",
-  "description": "Nisaba",
+  "version": "1.0.0",
+  "description": "A desktop browser that turns design research into a reusable library",
   "main": "./out/main/index.js",
   "author": "WynterJones",
   "license": "MIT",

@@ -14,6 +14,7 @@ import DesignSystems from '@/routes/design-systems'
 import Elements from '@/routes/elements'
 import HomeRoute from '@/routes/home'
 import Jobs from '@/routes/jobs'
+import Redlines from '@/routes/redlines'
 import Resources from '@/routes/resources'
 import Sections from '@/routes/sections'
 import Settings from '@/routes/settings'
@@ -72,6 +73,7 @@ function Shell(): React.JSX.Element {
             <Route path="/design-systems" element={<DesignSystems />} />
             <Route path="/components" element={<Components />} />
             <Route path="/templates" element={<Templates />} />
+            <Route path="/redlines" element={<Redlines />} />
             <Route path="/resources" element={<Resources />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/workspaces" element={<Workspaces />} />

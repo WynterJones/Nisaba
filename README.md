@@ -34,45 +34,51 @@ in your stack.
 
 ## What it does
 
-| | |
-| --- | --- |
-| 🦊 **Browse** | Tabs, viewport presets, rulers and grid overlays. Every page runs fully sandboxed. |
-| 📸 **Capture** | Viewport, full-page, region or element — annotated with arrows, blur and callouts, stored separately from the original. |
-| 🔍 **Extract** | Click a section and keep its sanitized HTML, matched CSS, computed styles, variables, fonts, assets and accessibility tree. |
-| 🎨 **Profile** | Infer a site's design language into an editable `design.md`, `tokens.json` and `site-profile.json`. |
-| 🧱 **Organize** | Typed libraries — Sites, Captures, Sections, Elements, Design Systems, Components, Templates, Resources — with full-text search, tags, collections and duplicate detection. |
-| ✨ **Convert** | Hand a saved section to Claude Code or Codex and get a component in React, Tailwind, shadcn/ui, Next.js, plain HTML or your own profile. |
-| ✅ **Verify** | Preview the generated result, compare it against the source at matching viewports, annotate corrections and send them back. |
-| 🔒 **Own it** | SQLite and files on your disk. No account, no sync, no telemetry. |
+**Browse** — multi-tab browsing where every site runs in its own isolated view: no Node, no preload
+bridge, every permission denied by default.
 
-## Status
+**Capture** — the visible viewport, the whole scrollable page (via CDP, beyond the viewport), a
+dragged region, or a picked element. Annotate with rectangles, arrows, highlight, blur, text and
+numbered callouts, stored as editable vectors so the original PNG is never touched.
 
-The whole loop works: browse, capture, extract, profile, organize, convert, and export.
+**Extract** — hover the page and the DOM outlines itself; arrow keys walk to parent, child or
+sibling. Click and Nisaba keeps a robust selector, sanitized HTML, computed styles, CSS custom
+properties, fonts, palette, assets and accessibility metadata — plus framework detection with a
+confidence score and the evidence behind it.
 
-**Working**
+**Redline** — review a page, live or on localhost, by clicking your way down it and pinning a note
+to each thing that needs fixing. Every pin remembers the element, its computed styles and where it
+sits on the page, then greps your workspace to find the file that renders it. Export the lot as a
+folder of tasks an agent can work straight through.
 
-- [x] Multi-tab browsing in isolated `WebContentsView`s with default-deny permissions
-- [x] Capture: visible viewport, full scrollable page (via CDP, beyond the viewport), dragged region, picked element
-- [x] Extract: hover-to-select overlay with arrow-key DOM navigation, returning a robust selector, sanitized HTML, computed styles, CSS custom properties, fonts, palette, assets and accessibility metadata
-- [x] Annotation editor — rectangles, ellipses, arrows, lines, highlight, blur, text and numbered callouts, stored as editable vectors so the original PNG is never touched, and flattenable to a new PNG
-- [x] Design profiling — measures the colours, type scale, spacing, radii, shadows, breakpoints and `:root` variables a page actually uses, and writes `design.md` and `tokens.json`
-- [x] Element Style Matrix — finds buttons, inputs, cards, badges and more, collapses visually identical instances, and screenshots each declared interaction state via CDP `forcePseudoState`
-- [x] Technology detection with a confidence score and the evidence behind it
-- [x] Library on disk: Captures, Sections, Elements, Design Systems, Resources, Sites and Bookmarks, with search, delete and reveal-in-Finder
-- [x] Workspaces — a folder an agent may write into, with a writability and framework probe
-- [x] Agent jobs — Claude Code or Codex spawned in the workspace with a layered prompt, streaming logs, cancel, produced-file detection and a Component record with full lineage
-- [x] Compare — two captures side by side, overlaid with an opacity slider, or as a locally computed pixel difference
-- [x] Portable export and import that preserves IDs and relationships
-- [x] Keyboard shortcuts, command palette, single-instance locking, crashed-job reconciliation
+<img src="docs/redline.png" alt="Nisaba redlining a localhost page, with the review panel open" width="100%">
 
-**Not yet**
+**Profile** — measure the colours, type scale, spacing, radii, shadows, breakpoints and `:root`
+variables a page actually uses, into an editable `design.md` and `tokens.json`. Observed values and
+inferred ones stay labelled apart.
 
-- [ ] Local preview server for generated output, so a running component can be compared automatically
-- [ ] Lint/build/test verification commands and a verified badge
-- [ ] Perceptual hashing and visual similarity search
-- [ ] SQLite (the index is one JSON file today)
+**Element Style Matrix** — find the buttons, inputs, cards and badges on a page, collapse visually
+identical instances into variants, and screenshot each interaction state the page really declares
+rules for.
+
+**Compare** — two captures side by side, overlaid with an opacity slider, or as a pixel difference
+computed locally, with a percentage-changed readout.
+
+**Organize** — Captures, Sections, Elements, Design Systems, Redlines, Resources, Sites and
+Bookmarks, all searchable, filterable and on your own disk. Export the whole library as a plain
+folder and import it back with IDs and relationships intact.
+
+**Convert** — hand a saved section to the Claude Code or Codex CLI you already have installed.
+Nisaba writes a source package, shows you the resolved prompt and the exact folder before anything
+runs, streams the log, and records what was produced with a trail back to its sources.
 
 <img src="docs/library.png" alt="The Captures library with real screenshots of Vercel, Stripe and Linear" width="100%">
+
+## Roadmap
+
+v1.0 is the complete loop. Next up: a local preview server so generated output can be compared
+automatically as it runs, verification commands before a component is marked verified, visual
+similarity search across the library, and SQLite in place of the single JSON index.
 
 The full specification, including all eight phases and their acceptance criteria, lives in
 [`_PLANS/PRD.md`](_PLANS/PRD.md).
@@ -81,6 +87,9 @@ The full specification, including all eight phases and their acceptance criteria
 
 Prebuilt installers for macOS, Windows and Linux are published on the
 [Releases](https://github.com/WynterJones/Nisaba/releases) page. The app updates itself from there.
+
+Or build it yourself — see [Develop](#develop) below. There is no account, no sign-in and no
+server; the whole thing runs on your machine.
 
 ## Develop
 
@@ -107,6 +116,8 @@ src/
     capture.ts     Viewport, full-page (CDP) and region screenshots
     extract.ts     The in-page selection overlay and artifact collector
     design.ts      Whole-page token measurement and design.md generation
+    redline.ts     The page-review overlay and pin context collector
+    sourcemap.ts   Grepping a workspace to find what renders an element
     elements.ts    Primitive detection and per-state capture
     workspaces.ts  Folder selection, probing and the write boundary
     jobs.ts        Prompt resolution, agent spawning, output detection

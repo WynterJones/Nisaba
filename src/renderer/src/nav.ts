@@ -10,6 +10,7 @@ import {
   Library,
   ListTodo,
   Palette,
+  PenLine,
   Settings,
   SquareLibrary,
   SquareDashedMousePointer,
@@ -41,6 +42,12 @@ export const NAV: NavGroup[] = [
         label: 'Bookmarks',
         icon: Bookmark,
         blurb: 'Pages worth returning to, with tags, collections and notes.'
+      },
+      {
+        to: '/redlines',
+        label: 'Redlines',
+        icon: PenLine,
+        blurb: 'Page reviews pinned to real elements, exported as a task plan an agent can work.'
       },
       {
         to: '/captures',
