@@ -42,7 +42,7 @@ function Detail({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[min(1000px,92vw)]">
+      <DialogContent className="overflow-hidden sm:max-w-[min(1000px,92vw)]">
         <DialogHeader>
           <DialogTitle>{record.name}</DialogTitle>
           <DialogDescription>
@@ -146,6 +146,8 @@ function Grid({ kind }: { kind: 'components' | 'templates' }): React.JSX.Element
         title={kind === 'components' ? 'Components' : 'Templates'}
         items={rows}
         search={(r) => `${r.name} ${r.framework}`}
+        groupBy={{ label: 'Stack', of: (r) => r.framework }}
+        nameOf={(r) => r.name}
         emptyTitle={kind === 'components' ? 'No components yet' : 'No templates yet'}
         emptyBlurb={
           kind === 'components'

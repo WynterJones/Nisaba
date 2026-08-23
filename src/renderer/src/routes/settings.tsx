@@ -7,6 +7,7 @@ import {
   Info,
   RefreshCw,
   Shield,
+  ShieldCheck,
   Upload,
   XCircle
 } from 'lucide-react'
@@ -17,7 +18,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import type { AgentInstallation } from '../../../preload'
 
 function Section({
@@ -175,22 +175,21 @@ export default function Settings(): React.JSX.Element {
           title="Privacy"
           description="No account, no telemetry. Browsed pages are treated as untrusted data."
         >
-          <div className="flex items-center justify-between">
-            <Label htmlFor="sanitize" className="text-sm font-normal">
-              Strip scripts, handlers and form values from saved HTML
-            </Label>
-            <Switch id="sanitize" defaultChecked disabled />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="diagnostics" className="text-sm font-normal">
-              Share anonymous diagnostics
-            </Label>
-            <Switch id="diagnostics" disabled />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Sanitization is always on in this build and diagnostics are never collected, so both
-            switches are fixed for now.
-          </p>
+          {/* These are guarantees, not preferences — a switch would imply they can be turned off. */}
+          <ul className="flex flex-col gap-2.5">
+            {[
+              'Scripts, event handlers and entered form values are stripped from every saved HTML fragment.',
+              'Browsed pages run with no Node, no preload bridge and every permission denied by default.',
+              'Scraped text reaches an agent as data, inside a prompt that says so explicitly.',
+              'No account, no sync, and no diagnostics are collected — there is nothing to opt out of.',
+              'Nothing leaves this machine except what you send through an agent CLI you installed.'
+            ].map((line) => (
+              <li key={line} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />
+                {line}
+              </li>
+            ))}
+          </ul>
         </Section>
 
         <Section icon={Info} title="About" description="Nisaba — Browse. Capture. Compound.">

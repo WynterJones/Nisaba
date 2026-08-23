@@ -28,6 +28,7 @@ import {
   profileDesign,
   startExtract
 } from '@/actions'
+import { Compare } from '@/components/shell/compare'
 import { ElementPicker } from '@/components/shell/element-picker'
 import { useActiveTab, useApp } from '@/store'
 import { cn } from '@/lib/utils'
@@ -131,8 +132,10 @@ const toolClass = (active: boolean): string =>
 
 export function BrowserToolbar(): React.JSX.Element {
   const tab = useActiveTab()
-  const { tool, setTool, picking, selection, inspectorOpen, toggleInspector, setOverlay } = useApp()
+  const { picking, selection, inspectorOpen, inspectorTab, toggleInspector, openInspector, setOverlay } =
+    useApp()
   const [candidates, setCandidates] = useState<ElementCandidate[] | null>(null)
+  const [comparing, setComparing] = useState(false)
   const [scanning, setScanning] = useState(false)
   const disabled = !tab
 
@@ -151,6 +154,14 @@ export function BrowserToolbar(): React.JSX.Element {
     <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-border bg-background px-3">
       {candidates && (
         <ElementPicker candidates={candidates} onClose={() => setCandidates(null)} />
+      )}
+      {comparing && (
+        <Compare
+          onClose={() => {
+            setComparing(false)
+            setOverlay(false)
+          }}
+        />
       )}
       <div className="flex items-center">
         <Button
@@ -240,7 +251,7 @@ export function BrowserToolbar(): React.JSX.Element {
           disabled={disabled}
           onClick={() => (picking ? void cancelExtract() : void startExtract())}
           title={picking ? 'Cancel selection' : 'Select a section on the page'}
-          className={toolClass(picking || tool === 'extract')}
+          className={toolClass(picking)}
         >
           {picking ? (
             <Loader2 className="size-4 animate-spin" />
@@ -252,9 +263,9 @@ export function BrowserToolbar(): React.JSX.Element {
 
         <button
           disabled={disabled || !selection}
-          onClick={() => setTool('convert')}
+          onClick={() => openInspector('ai')}
           title={selection ? 'Convert this selection to code' : 'Extract a section first'}
-          className={toolClass(tool === 'convert')}
+          className={toolClass(inspectorOpen && inspectorTab === 'ai')}
         >
           <Sparkles className="size-4" />
           Convert
@@ -277,9 +288,12 @@ export function BrowserToolbar(): React.JSX.Element {
         <Button
           variant="ghost"
           size="icon"
-          disabled
-          title="Compare source and output — available once a component is generated"
-          aria-label="Compare view"
+          title="Compare two captures — side by side, overlaid or by difference"
+          aria-label="Compare captures"
+          onClick={() => {
+            setOverlay(true)
+            setComparing(true)
+          }}
         >
           <Columns2 className="size-4" />
         </Button>

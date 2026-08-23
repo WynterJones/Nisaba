@@ -54,7 +54,7 @@ export function ElementPicker({
 
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-w-[min(760px,92vw)]">
+      <DialogContent className="overflow-hidden sm:max-w-[min(760px,92vw)]">
         <DialogHeader>
           <DialogTitle>
             <span className="flex items-center gap-2">

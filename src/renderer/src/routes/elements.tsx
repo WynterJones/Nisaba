@@ -91,6 +91,8 @@ export default function Elements(): React.JSX.Element {
       search={(e) => `${e.label} ${e.category} ${e.host} ${e.text}`}
       emptyTitle="No elements yet"
       emptyBlurb="Open a page in Browse and run Detect elements from the Capture menu. Nisaba finds the buttons, inputs, cards and badges, screenshots each one with its hover and focus states, and files them by category."
+      groupBy={{ label: 'Site', of: (e) => e.host }}
+      nameOf={(e) => e.label}
       actions={
         categories.length > 0 && (
           <div className="flex items-center gap-1">

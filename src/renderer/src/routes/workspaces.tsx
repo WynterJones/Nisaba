@@ -190,6 +190,7 @@ export default function Workspaces(): React.JSX.Element {
       title="Workspaces"
       items={workspaces}
       search={(w) => `${w.name} ${w.root} ${w.profile}`}
+      nameOf={(w) => w.name}
       emptyTitle="No workspaces yet"
       emptyBlurb="Point Nisaba at a folder and it becomes the only place an agent job can write. Pick the stack it should generate in, and the CLI that will do the work."
       actions={<CreateDialog />}

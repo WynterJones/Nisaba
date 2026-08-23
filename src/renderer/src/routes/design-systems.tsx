@@ -54,7 +54,7 @@ function Detail({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[min(880px,92vw)]">
+      <DialogContent className="overflow-hidden sm:max-w-[min(880px,92vw)]">
         <DialogHeader>
           <DialogTitle>{record.name}</DialogTitle>
           <DialogDescription>
@@ -184,6 +184,8 @@ export default function DesignSystems(): React.JSX.Element {
         search={(d) => `${d.name} ${d.host} ${d.url}`}
         emptyTitle="No design profiles yet"
         emptyBlurb="Open a page in Browse and run Profile this page. Nisaba measures the colours, type, spacing, radii, shadows and breakpoints it actually uses, and writes an editable design.md and tokens.json."
+        groupBy={{ label: 'Site', of: (d) => d.host }}
+        nameOf={(d) => d.name}
       >
         {(rows) => (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(19rem,1fr))] gap-4 p-5">

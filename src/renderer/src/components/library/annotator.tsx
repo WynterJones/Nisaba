@@ -271,7 +271,7 @@ export function Annotator({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[min(1100px,92vw)]">
+      <DialogContent className="overflow-hidden sm:max-w-[min(1100px,92vw)]">
         <DialogHeader>
           <DialogTitle>Annotate</DialogTitle>
           <DialogDescription>

@@ -16,6 +16,7 @@ export default function Sites(): React.JSX.Element {
       search={(s) => s.host}
       emptyTitle="No sites yet"
       emptyBlurb="Every domain you capture from gets a record here, with everything you have taken from it."
+      nameOf={(s) => s.host}
     >
       {(shown) => (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3 p-5">

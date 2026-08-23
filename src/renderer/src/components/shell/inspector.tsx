@@ -463,12 +463,15 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
 }
 
 export function Inspector(): React.JSX.Element {
-  const { selection, setSelection, picking } = useApp()
-  const [tab, setTab] = useState('inspect')
+  const { selection, setSelection, picking, inspectorTab, setInspectorTab } = useApp()
 
   return (
     <aside className="flex w-[340px] shrink-0 flex-col border-l border-border bg-sidebar">
-      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
+      <Tabs
+        value={inspectorTab}
+        onValueChange={(value) => setInspectorTab(value as 'inspect' | 'assets' | 'ai')}
+        className="flex min-h-0 flex-1 flex-col gap-0"
+      >
         <TabsList className="h-auto w-full justify-start rounded-none border-b border-border bg-transparent p-0">
           {['Inspect', 'Assets', 'AI'].map((t) => (
             <TabsTrigger
@@ -528,7 +531,7 @@ export function Inspector(): React.JSX.Element {
           <Save className="size-4" />
           Save section
         </Button>
-        <Button disabled={!selection} onClick={() => setTab('ai')}>
+        <Button disabled={!selection} onClick={() => setInspectorTab('ai')}>
           <Sparkles className="size-4" />
           Convert
         </Button>

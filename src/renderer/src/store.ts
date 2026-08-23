@@ -33,6 +33,8 @@ type AppState = {
   tabs: TabState[]
   activeTabId: string | null
   tool: Tool
+  /** Which inspector tab is showing, so the toolbar can switch it. */
+  inspectorTab: 'inspect' | 'assets' | 'ai'
   /** The section currently picked out of a live page, before it is saved. */
   selection: SectionDraft | null
   picking: boolean
@@ -45,6 +47,8 @@ type AppState = {
   activateTab: (id: string) => void
   patchTab: (patch: Partial<TabState> & { id: string }) => void
   setTool: (tool: Tool) => void
+  setInspectorTab: (tab: 'inspect' | 'assets' | 'ai') => void
+  openInspector: (tab: 'inspect' | 'assets' | 'ai') => void
   setSelection: (selection: SectionDraft | null) => void
   setPicking: (picking: boolean) => void
   toggleInspector: () => void
@@ -69,6 +73,7 @@ export const useApp = create<AppState>((set, get) => ({
   tabs: [],
   activeTabId: null,
   tool: null,
+  inspectorTab: 'inspect',
   selection: null,
   picking: false,
   inspectorOpen: true,
@@ -101,6 +106,8 @@ export const useApp = create<AppState>((set, get) => ({
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === patch.id ? { ...t, ...patch } : t)) })),
 
   setTool: (tool) => set((s) => ({ tool: s.tool === tool ? null : tool })),
+  setInspectorTab: (inspectorTab) => set({ inspectorTab }),
+  openInspector: (inspectorTab) => set({ inspectorTab, inspectorOpen: true }),
   setSelection: (selection) => set({ selection }),
   setPicking: (picking) => set({ picking }),
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
@@ -212,6 +219,8 @@ export type SiteSummary = {
   sections: number
   lastSeen: number
   latestUrl: string
+  /** Mirrors lastSeen so a site sorts alongside every other library record. */
+  createdAt: number
 }
 
 export function useSites(): SiteSummary[] {
@@ -219,9 +228,11 @@ export function useSites(): SiteSummary[] {
   const map = new Map<string, SiteSummary>()
 
   const touch = (host: string, url: string, at: number): SiteSummary => {
-    const existing = map.get(host) ?? { host, captures: 0, sections: 0, lastSeen: 0, latestUrl: url }
+    const existing =
+      map.get(host) ?? { host, captures: 0, sections: 0, lastSeen: 0, createdAt: 0, latestUrl: url }
     if (at > existing.lastSeen) {
       existing.lastSeen = at
+      existing.createdAt = at
       existing.latestUrl = url
     }
     map.set(host, existing)

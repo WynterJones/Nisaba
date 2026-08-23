@@ -69,7 +69,7 @@ function JobDetail({ job, onClose }: { job: JobRecord; onClose: () => void }): R
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[min(900px,92vw)]">
+      <DialogContent className="overflow-hidden sm:max-w-[min(900px,92vw)]">
         <DialogHeader>
           <DialogTitle>{job.title}</DialogTitle>
           <DialogDescription>
@@ -167,6 +167,8 @@ export default function Jobs(): React.JSX.Element {
         title="Jobs"
         items={jobs}
         search={(j) => `${j.title} ${j.agent} ${j.profile} ${j.status}`}
+        groupBy={{ label: 'Status', of: (j) => j.status }}
+        nameOf={(j) => j.title}
         emptyTitle="No jobs yet"
         emptyBlurb="Extract a section, pick a workspace, and convert it. Every run keeps its resolved prompt, its command, its full log and the files it produced."
       >

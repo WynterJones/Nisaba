@@ -61,12 +61,13 @@ The whole loop works: browse, capture, extract, profile, organize, convert, and 
 - [x] Library on disk: Captures, Sections, Elements, Design Systems, Resources, Sites and Bookmarks, with search, delete and reveal-in-Finder
 - [x] Workspaces — a folder an agent may write into, with a writability and framework probe
 - [x] Agent jobs — Claude Code or Codex spawned in the workspace with a layered prompt, streaming logs, cancel, produced-file detection and a Component record with full lineage
+- [x] Compare — two captures side by side, overlaid with an opacity slider, or as a locally computed pixel difference
 - [x] Portable export and import that preserves IDs and relationships
 - [x] Keyboard shortcuts, command palette, single-instance locking, crashed-job reconciliation
 
 **Not yet**
 
-- [ ] Local preview server for generated output, and side-by-side visual comparison
+- [ ] Local preview server for generated output, so a running component can be compared automatically
 - [ ] Lint/build/test verification commands and a verified badge
 - [ ] Perceptual hashing and visual similarity search
 - [ ] SQLite (the index is one JSON file today)

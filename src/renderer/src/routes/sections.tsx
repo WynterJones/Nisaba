@@ -1,10 +1,5 @@
 import { useNavigate } from 'react-router'
-import {
-  ExternalLink,
-  FolderOpen,
-  SquareDashedMousePointer,
-  Trash2
-} from 'lucide-react'
+import { ExternalLink, FolderOpen, SquareDashedMousePointer, Trash2 } from 'lucide-react'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { useApp, useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
@@ -29,8 +24,59 @@ export default function Sections(): React.JSX.Element {
       search={(s) => `${s.name} ${s.url} ${s.selector} ${s.tech.map((t) => t.name).join(' ')}`}
       emptyTitle="No sections yet"
       emptyBlurb="Turn on Extract in Browse, click a region of a live page, then save it. Sections keep the screenshot, HTML, styles, tokens and where they came from."
+      views={['grid', 'table']}
+      groupBy={{ label: 'Site', of: (s) => s.host }}
+      nameOf={(s) => s.name}
     >
-      {(shown) => (
+      {(shown, view) =>
+        view === 'table' ? (
+          <ul className="divide-y divide-border">
+            {shown.map((record) => (
+              <li
+                key={record.id}
+                className="group flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-accent/40"
+              >
+                <img
+                  src={window.api.library.url(record.file)}
+                  alt=""
+                  loading="lazy"
+                  className="h-10 w-16 shrink-0 rounded border border-border object-cover object-top"
+                />
+                <button onClick={() => revisit(record)} className="min-w-0 flex-1 text-left">
+                  <span className="block truncate text-sm font-medium">{record.name}</span>
+                  <span className="block truncate font-mono text-xs text-muted-foreground">
+                    {record.selector}
+                  </span>
+                </button>
+                <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">
+                  {record.host}
+                </span>
+                <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
+                  {timeAgo(record.createdAt)}
+                </span>
+                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="Reveal in Finder"
+                    onClick={() => window.api.library.reveal(record.file)}
+                  >
+                    <FolderOpen className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="Delete section"
+                    className="hover:text-destructive"
+                    onClick={() => void remove('sections', record.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(19rem,1fr))] gap-4 p-5">
           {shown.map((record) => (
             <article
@@ -110,7 +156,8 @@ export default function Sections(): React.JSX.Element {
             </article>
           ))}
         </div>
-      )}
+        )
+      }
     </LibraryFrame>
   )
 }

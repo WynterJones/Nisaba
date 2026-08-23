@@ -106,6 +106,9 @@ export default function Captures(): React.JSX.Element {
       search={(c) => `${c.title} ${c.url} ${c.kind}`}
       emptyTitle="No captures yet"
       emptyBlurb="Open a page in Browse and use the Capture menu — viewport, full page or a dragged region. Everything you take shows up here with its source."
+      views={['grid', 'table']}
+      groupBy={{ label: 'Site', of: (c) => c.host }}
+      nameOf={(c) => c.title}
     >
       {(shown, view) =>
         view === 'grid' ? (
