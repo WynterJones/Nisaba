@@ -195,7 +195,7 @@ export default function Settings(): React.JSX.Element {
           {/* These are guarantees, not preferences — a switch would imply they can be turned off. */}
           <ul className="flex flex-col gap-2.5">
             {[
-              'Saved HTML gets frisked. Scripts, handlers and anything you typed never make the trip.',
+              'Saved HTML gets frisked — no scripts, handlers or typed values.',
               'Every page is treated as a suspect: no Node, no bridge, no permissions.',
               'Scraped text reaches an agent as evidence, never as orders.',
               'No account, no sync, no telemetry. Nothing to opt out of.',
