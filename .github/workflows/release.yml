@@ -1,14 +1,15 @@
 name: release
 
+# macOS releases are built, signed and notarized on a machine that holds the Developer ID
+# certificate, so nothing here fires on a tag. Kept for manual Windows/Linux builds only.
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

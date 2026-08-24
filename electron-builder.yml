@@ -9,13 +9,19 @@ files:
 # node-pty ships a .node binary and a spawn-helper that must be real files on disk.
 asarUnpack:
   - "**/node_modules/node-pty/**"
-publish:
-  provider: github
-  owner: WynterJones
-  repo: Nisaba
+# Artifacts are uploaded to a release by hand after notarization, never by the packer.
+publish: null
 mac:
   target: dmg
   category: public.app-category.productivity
+  # Notarization is a hard requirement for hardened runtime, and hardened runtime is a hard
+  # requirement for notarization -- both or neither.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize:
+    teamId: 7X2UF4FZHC
 win:
   target: nsis
 linux:
