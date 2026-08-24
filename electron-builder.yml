@@ -14,14 +14,14 @@ publish: null
 mac:
   target: dmg
   category: public.app-category.productivity
-  # Notarization is a hard requirement for hardened runtime, and hardened runtime is a hard
-  # requirement for notarization -- both or neither.
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  notarize:
-    teamId: 7X2UF4FZHC
+  # Signing happens here; notarization is `npm run notarize`, which submits the finished DMGs
+  # with a notarytool keychain profile. That keeps the app-specific password out of the
+  # environment and off every command line.
+  notarize: false
 win:
   target: nsis
 linux:

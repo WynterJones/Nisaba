@@ -14,6 +14,7 @@
     "check:design": "node --experimental-strip-types scripts/check-design-md.mts",
     "check:extract": "node --experimental-strip-types scripts/check-extract.mts",
     "dist": "npm run build && electron-builder --mac --arm64 --x64",
+    "notarize": "bash scripts/notarize.sh",
     "release": "npm run build && electron-builder --mac --arm64 --x64 --publish never",
     "postinstall": "electron-rebuild -f -w node-pty"
   },
