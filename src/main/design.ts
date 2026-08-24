@@ -36,7 +36,7 @@ type Shot = {
   text: string
 }
 
-type Raw = {
+export type Raw = {
   colors: Record<string, number>
   backgrounds: Record<string, number>
   families: Record<string, number>
@@ -416,6 +416,9 @@ export function registerDesignIpc(): void {
       `${id}.tokens.json`,
       JSON.stringify({ source: page.url, spec, tokens, typeScale: raw.typeScale }, null, 2)
     )
+    // Every control the page actually declared, before the heuristics collapsed them into one
+    // of each. This is the evidence a later refinement pass reasons over.
+    await writeText('design-systems', `${id}.raw.json`, JSON.stringify(raw))
 
     return addRecord('designSystems', {
       id,

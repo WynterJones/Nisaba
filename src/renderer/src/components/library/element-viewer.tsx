@@ -18,10 +18,13 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ElementRecord } from '../../../../preload'
 
-/** Turns the captured computed styles back into a rule you can paste. */
+/**
+ * Turns the captured computed styles back into a rule you can paste. The class is named after
+ * what the element *is*, not where it came from — a saved element is a copy to reuse, and the
+ * path back to the page it was lifted from is no use in your own project.
+ */
 export function toCss(record: ElementRecord): string {
-  // The last step of the selector path is the closest thing to a name we kept.
-  const selector = record.selector.split('>').pop()?.trim() || record.category.toLowerCase()
+  const selector = `.${(record.category || 'element').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
   const body = Object.entries(record.styles)
     .map(([key, value]) => `  ${key}: ${value};`)
     .join('\n')
@@ -136,10 +139,6 @@ export function ElementViewer({
                 ))}
               </div>
             )}
-
-            <code className="truncate rounded bg-secondary/60 px-2 py-1 font-mono text-[10px] text-muted-foreground">
-              {record.selector}
-            </code>
           </div>
 
           <Tabs defaultValue="css" className="flex min-h-0 flex-col">
@@ -189,7 +188,6 @@ export function ElementViewer({
         <div className="flex flex-wrap items-center gap-2">
           <CopyButton text={css} label="Copy CSS" />
           <CopyButton text={tw} label="Copy Tailwind" />
-          <CopyButton text={record.selector} label="Copy selector" />
 
           <div className="ml-auto flex items-center gap-2">
             <Button

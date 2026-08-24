@@ -187,7 +187,7 @@ export function CaptureViewer({
                   >
                     {record.file && (
                       <img
-                        src={window.api.library.url(record.file)}
+                        src={window.api.library.url(record.file, true)}
                         alt=""
                         className="h-14 w-20 object-cover object-top"
                       />

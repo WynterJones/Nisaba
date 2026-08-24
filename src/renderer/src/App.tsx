@@ -54,6 +54,11 @@ function Shell(): React.JSX.Element {
   const refresh = useLibrary((s) => s.refresh)
 
   useEffect(() => window.api.browser.onTabUpdated(patchTab), [patchTab])
+  // Links the page opened itself land here — the tab strip lives in this process, not in main.
+  useEffect(
+    () => window.api.browser.onOpenTab(({ url, background }) => useApp.getState().newTab(url, background)),
+    []
+  )
   useEffect(() => void refresh(), [refresh])
   useShortcuts()
 

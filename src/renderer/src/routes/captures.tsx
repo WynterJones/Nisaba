@@ -152,7 +152,7 @@ export default function Captures(): React.JSX.Element {
                   className="block aspect-[4/3] overflow-hidden bg-secondary/40"
                 >
                   <img
-                    src={window.api.library.url(record.file)}
+                    src={window.api.library.url(record.file, true)}
                     alt={record.title}
                     loading="lazy"
                     className="size-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]"
@@ -183,7 +183,7 @@ export default function Captures(): React.JSX.Element {
                 className="group flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-accent/40"
               >
                 <img
-                  src={window.api.library.url(record.file)}
+                  src={window.api.library.url(record.file, true)}
                   alt=""
                   loading="lazy"
                   className="h-10 w-16 shrink-0 rounded border border-border object-cover object-top"

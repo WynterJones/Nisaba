@@ -1,5 +1,15 @@
-import { useState } from 'react'
-import { Copy, ExternalLink, FolderOpen, Palette, Save, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import {
+  Copy,
+  ExternalLink,
+  FolderOpen,
+  Loader2,
+  Palette,
+  Save,
+  Sparkles,
+  Trash2,
+  Wand2
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { DesignPreview } from '@/components/library/design-preview'
@@ -42,12 +52,56 @@ function TokenList({ label, values }: { label: string; values: string[] }): Reac
   )
 }
 
+/** Which profiles have an agent working on them right now, so the UI can say so. */
+function useRefining(): {
+  refining: Set<string>
+  start: (record: DesignSystemRecord) => Promise<void>
+} {
+  const [refining, setRefining] = useState<Set<string>>(new Set())
+
+  useEffect(
+    () =>
+      window.api.design.onRefined((state) => {
+        setRefining((current) => {
+          const next = new Set(current)
+          next.delete(state.id)
+          return next
+        })
+        void useLibrary.getState().refresh()
+        if (state.status === 'done') {
+          toast.success('Profile refined', { description: 'The agent corrected the measurements.' })
+        } else {
+          toast.error('Refinement failed', { description: state.error ?? undefined })
+        }
+      }),
+    []
+  )
+
+  const start = async (record: DesignSystemRecord): Promise<void> => {
+    try {
+      const state = await window.api.design.refine(record)
+      setRefining((current) => new Set(current).add(record.id))
+      toast.info(`${state.agent === 'claude' ? 'Claude Code' : 'Codex'} is refining this profile`, {
+        description: 'It reads the screenshot and the raw samples. Watch it in the terminal dock.'
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
+    }
+  }
+
+  return { refining, start }
+}
+
 function Detail({
   record,
-  onClose
+  onClose,
+  onRefine,
+  refining
 }: {
   record: DesignSystemRecord
   onClose: () => void
+  onRefine: () => void
+  refining: boolean
 }): React.JSX.Element {
   const [levels, setLevels] = useState<Levels>(record.levels ?? DEFAULT_LEVELS)
   const dirty = JSON.stringify(levels) !== JSON.stringify(record.levels ?? DEFAULT_LEVELS)
@@ -80,7 +134,10 @@ function Detail({
       <DialogContent className="overflow-hidden sm:max-w-[min(880px,92vw)]">
         <DialogHeader>
           <DialogTitle>{record.name}</DialogTitle>
-          <DialogDescription>Measured from {record.url}</DialogDescription>
+          <DialogDescription>
+            Measured from {record.url}
+            {record.refinedAt && ' · corrected by an agent'}
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue={record.spec ? 'preview' : 'tokens'}>
@@ -184,6 +241,21 @@ function Detail({
         </Tabs>
 
         <div className="flex items-center justify-end gap-2">
+          {record.spec && (
+            <Button
+              variant="secondary"
+              disabled={refining}
+              title="Hand the screenshot and the raw samples to your agent CLI and let it correct the measurements"
+              onClick={onRefine}
+            >
+              {refining ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Wand2 className="size-4" />
+              )}
+              {refining ? 'Refining…' : record.refinedAt ? 'Refine again' : 'Refine with agent'}
+            </Button>
+          )}
           {dirty && (
             <span className="mr-auto text-[11px] text-amber-300/80">
               Levels changed — save to write the new design.md.
@@ -215,6 +287,7 @@ function Detail({
 export default function DesignSystems(): React.JSX.Element {
   const { designSystems, remove } = useLibrary()
   const [open, setOpen] = useState<DesignSystemRecord | null>(null)
+  const { refining, start } = useRefining()
 
   return (
     <>
@@ -240,7 +313,7 @@ export default function DesignSystems(): React.JSX.Element {
                   className="block max-h-40 overflow-hidden bg-secondary/40"
                 >
                   <img
-                    src={window.api.library.url(record.file)}
+                    src={window.api.library.url(record.file, true)}
                     alt={record.name}
                     loading="lazy"
                     className="w-full object-cover object-top"
@@ -257,6 +330,19 @@ export default function DesignSystems(): React.JSX.Element {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={!record.spec || refining.has(record.id)}
+                        title="Refine this profile with your agent"
+                        onClick={() => void start(record)}
+                      >
+                        {refining.has(record.id) ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="size-3.5" />
+                        )}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -289,6 +375,12 @@ export default function DesignSystems(): React.JSX.Element {
                   </div>
 
                   <div className="flex flex-wrap gap-1">
+                    {record.refinedAt && (
+                      <Badge className="gap-1 bg-brand/15 text-[10px] font-normal text-brand-bright">
+                        <Sparkles className="size-2.5" />
+                        Agent-refined
+                      </Badge>
+                    )}
                     {record.tokens.fonts.slice(0, 2).map((f) => (
                       <Badge key={f.family} variant="secondary" className="text-[10px] font-normal">
                         {f.family}
@@ -302,7 +394,14 @@ export default function DesignSystems(): React.JSX.Element {
         )}
       </LibraryFrame>
 
-      {open && <Detail record={open} onClose={() => setOpen(null)} />}
+      {open && (
+        <Detail
+          record={designSystems.find((d) => d.id === open.id) ?? open}
+          onClose={() => setOpen(null)}
+          refining={refining.has(open.id)}
+          onRefine={() => void start(open)}
+        />
+      )}
     </>
   )
 }

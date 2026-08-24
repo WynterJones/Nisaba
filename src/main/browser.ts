@@ -1,4 +1,4 @@
-import { BrowserWindow, WebContentsView, shell, ipcMain, session } from 'electron'
+import { BrowserWindow, WebContentsView, Menu, clipboard, shell, ipcMain, session } from 'electron'
 
 export type TabState = {
   id: string
@@ -30,6 +30,78 @@ function remoteSession(): Electron.Session {
   return s
 }
 
+/** Asks the renderer for a tab: it owns the tab strip, so main never invents one. */
+function openTab(win: BrowserWindow, url: string, background = false): void {
+  if (win.isDestroyed()) return
+  win.webContents.send('browser:open-tab', { url, background })
+}
+
+/**
+ * The page's own right-click menu. Remote pages get no preload and no IPC, so everything here
+ * is driven from the params Chromium reports rather than from anything the page can say.
+ */
+function pageMenu(
+  win: BrowserWindow,
+  wc: Electron.WebContents,
+  params: Electron.ContextMenuParams
+): Electron.Menu {
+  const items: Electron.MenuItemConstructorOptions[] = []
+  const { linkURL, srcURL, selectionText, isEditable, mediaType, editFlags } = params
+
+  if (linkURL) {
+    items.push(
+      { label: 'Open Link in New Tab', click: () => openTab(win, linkURL, true) },
+      { label: 'Open Link in Browser', click: () => void shell.openExternal(linkURL) },
+      { label: 'Copy Link', click: () => clipboard.writeText(linkURL) },
+      { type: 'separator' }
+    )
+  }
+
+  if (mediaType === 'image' && srcURL) {
+    items.push(
+      { label: 'Open Image in New Tab', click: () => openTab(win, srcURL, true) },
+      { label: 'Copy Image', click: () => wc.copyImageAt(params.x, params.y) },
+      { label: 'Copy Image Address', click: () => clipboard.writeText(srcURL) },
+      { type: 'separator' }
+    )
+  }
+
+  if (isEditable) {
+    items.push(
+      { role: 'cut', enabled: editFlags.canCut },
+      { role: 'copy', enabled: editFlags.canCopy },
+      { role: 'paste', enabled: editFlags.canPaste },
+      { role: 'selectAll' },
+      { type: 'separator' }
+    )
+  } else if (selectionText.trim()) {
+    items.push(
+      { role: 'copy' },
+      {
+        label: 'Search Google for Selection',
+        click: () =>
+          openTab(
+            win,
+            `https://www.google.com/search?q=${encodeURIComponent(selectionText.slice(0, 200))}`,
+            true
+          )
+      },
+      { type: 'separator' }
+    )
+  }
+
+  items.push(
+    { label: 'Back', enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
+    { label: 'Forward', enabled: wc.navigationHistory.canGoForward(), click: () => wc.navigationHistory.goForward() },
+    { label: 'Reload', click: () => wc.reload() },
+    { type: 'separator' },
+    { label: 'Copy Page Address', click: () => clipboard.writeText(wc.getURL()) },
+    { label: 'Open Page in Browser', click: () => void shell.openExternal(wc.getURL()) }
+  )
+
+  return Menu.buildFromTemplate(items)
+}
+
 function createView(win: BrowserWindow, id: string): WebContentsView {
   const view = new WebContentsView({
     webPreferences: {
@@ -53,11 +125,17 @@ function createView(win: BrowserWindow, id: string): WebContentsView {
     })
   }
 
-  wc.setWindowOpenHandler(({ url }) => {
-    // New windows are never granted; same-tab navigation or the system browser instead.
-    if (url.startsWith('http')) wc.loadURL(url)
+  // Middle-click, cmd-click and target=_blank all arrive here. A new window is never granted —
+  // the renderer owns the tab strip, so it is asked to open a tab instead. Chromium reports
+  // middle- and cmd-click as `background-tab`, which is the one case the new tab does not steal
+  // focus.
+  wc.setWindowOpenHandler(({ url, disposition }) => {
+    if (/^https?:/.test(url)) openTab(win, url, disposition === 'background-tab')
+    else if (url) shell.openExternal(url)
     return { action: 'deny' }
   })
+
+  wc.on('context-menu', (_e, params) => pageMenu(win, wc, params).popup({ window: win }))
   wc.on('will-navigate', (e, url) => {
     if (!/^https?:|^about:blank$/.test(url)) {
       e.preventDefault()
@@ -127,11 +205,14 @@ export function registerBrowserIpc(win: BrowserWindow): void {
   }
   const active = activeView
 
-  handle('browser:open', (id: string, url: string) => {
+  handle('browser:open', (id: string, url: string, activate: boolean = true) => {
     const view = views.get(id) ?? createView(win, id)
     if (!win.contentView.children.includes(view)) win.contentView.addChildView(view)
-    activeId = id
-    hidden = false
+    // A background tab loads without taking the viewport off whatever is being read.
+    if (activate) {
+      activeId = id
+      hidden = false
+    }
     layout(win)
     if (url && view.webContents.getURL() !== url) void view.webContents.loadURL(url)
   })

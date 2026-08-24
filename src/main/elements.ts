@@ -228,7 +228,6 @@ export function registerElementIpc(): void {
             label: candidate.label,
             host: page.host,
             url: page.url,
-            selector: candidate.selector,
             file: await writeImage('elements', id, png),
             phash: await hashImage(png),
             rect: candidate.rect,

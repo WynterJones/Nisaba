@@ -1,15 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { ArrowUpRight, Compass, MousePointerClick, X } from 'lucide-react'
+import { Compass, MousePointerClick, X } from 'lucide-react'
 import { cancelExtract } from '@/actions'
 import { Backdrop } from '@/components/canvas/backdrop'
-import { BrowserToolbar, toUrl } from '@/components/shell/browser-toolbar'
+import { BrowserToolbar } from '@/components/shell/browser-toolbar'
 import { Inspector } from '@/components/shell/inspector'
 import { AuditPanel } from '@/components/shell/audit-panel'
 import { useAudit } from '@/audit'
 import { useActiveTab, useApp } from '@/store'
-import { Button } from '@/components/ui/button'
-
-const SUGGESTIONS = ['linear.app', 'stripe.com', 'vercel.com', 'ui.shadcn.com', 'railway.com']
 
 /**
  * Hosts the native WebContentsView. Remote pages are composited by the main process on top of
@@ -68,30 +65,17 @@ function ViewportHost(): React.JSX.Element {
 }
 
 function StartPage(): React.JSX.Element {
-  const newTab = useApp((s) => s.newTab)
-
   return (
     <Backdrop>
-      <div className="flex flex-col items-center gap-8 p-8">
-      <div className="flex flex-col items-center gap-3 text-center">
+      <div className="flex flex-col items-center gap-3 p-8 text-center">
         <span className="grid size-14 place-items-center rounded-2xl border border-border bg-secondary/50">
           <Compass className="size-6 text-brand-bright" />
         </span>
         <h1 className="text-2xl font-semibold tracking-tight">Browse. Capture. Compound.</h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          Open a site to research. Everything you capture keeps its screenshot, source and
-          provenance, so your library gets more useful the longer you use it.
+          Type a site in the address bar above. Everything you capture keeps its screenshot,
+          source and provenance, so your library gets more useful the longer you use it.
         </p>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-center gap-2">
-          {SUGGESTIONS.map((site) => (
-            <Button key={site} variant="secondary" size="sm" onClick={() => newTab(toUrl(site))}>
-              {site}
-              <ArrowUpRight className="size-3.5 opacity-60" />
-            </Button>
-          ))}
-        </div>
       </div>
     </Backdrop>
   )

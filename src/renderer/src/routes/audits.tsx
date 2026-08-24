@@ -63,7 +63,7 @@ function Detail({
                 </span>
                 {pin.shot && (
                   <img
-                    src={window.api.library.url(pin.shot)}
+                    src={window.api.library.url(pin.shot, true)}
                     alt=""
                     className="h-14 w-20 shrink-0 rounded border border-border object-cover object-top"
                   />
@@ -247,7 +247,7 @@ export default function Audits(): React.JSX.Element {
                       .map((pin) => (
                         <img
                           key={pin.id}
-                          src={window.api.library.url(pin.shot!)}
+                          src={window.api.library.url(pin.shot!, true)}
                           alt=""
                           className="h-10 w-14 rounded border border-border object-cover object-top"
                         />

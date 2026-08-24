@@ -37,25 +37,32 @@ export function UpdateButton({ collapsed }: { collapsed: boolean }): React.JSX.E
     if (next.status === 'error') toast.error(next.error ?? 'Could not check for updates')
   }
 
+  // There has to be an update before there is anything to install — a manual check used to
+  // count as "working", which rendered the install button for a version that did not exist yet.
   const offerable = state.status === 'available' || state.status === 'ready'
-  const working = busy || state.status === 'downloading'
+  const working = state.status === 'downloading' || (busy && offerable)
+  const checking = state.status === 'checking' || (busy && !offerable)
 
-  // Nothing to offer and nothing in flight: keep a quiet manual check instead of a banner.
-  if (!offerable && !working) {
+  // Nothing to offer: keep a quiet manual check instead of a banner.
+  if (!offerable) {
     return (
       <button
         onClick={() => void check()}
+        disabled={checking}
         title={state.supported ? 'Check for updates' : 'Updates apply to the packaged app'}
         className={cn(
           'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground',
           collapsed && 'justify-center px-0'
         )}
       >
-        <RefreshCw className={cn('size-3.5 shrink-0', state.status === 'checking' && 'animate-spin')} />
-        {!collapsed && <span>Check for updates</span>}
+        <RefreshCw className={cn('size-3.5 shrink-0', checking && 'animate-spin')} />
+        {!collapsed && <span>{checking ? 'Checking…' : 'Check for updates'}</span>}
       </button>
     )
   }
+
+  // Belt and braces: never render a version that is not there.
+  const version = state.version ?? 'the latest version'
 
   return (
     <button
@@ -63,8 +70,8 @@ export function UpdateButton({ collapsed }: { collapsed: boolean }): React.JSX.E
       disabled={working}
       title={
         state.status === 'ready'
-          ? `Restart into ${state.version}`
-          : `Download and install ${state.version}`
+          ? `Restart into ${version}`
+          : `Download and install ${version}`
       }
       className={cn(
         'btn-raised btn-raised--primary flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-primary-foreground',
@@ -84,7 +91,7 @@ export function UpdateButton({ collapsed }: { collapsed: boolean }): React.JSX.E
             ? `Downloading ${state.percent}%`
             : state.status === 'ready'
               ? `Restart to update`
-              : `Update to ${state.version}`}
+              : `Update to ${version}`}
         </span>
       )}
     </button>

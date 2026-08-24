@@ -664,3 +664,155 @@ export function completeComponents(
   return derived
 }
 
+/* ------------------------------------------------- agent-refined merging */
+
+/**
+ * Digs the answer out of whatever an agent CLI produced. They are asked to write a file, but
+ * they routinely answer with the JSON in the transcript instead — often inside a ```json fence
+ * and surrounded by prose — so the transcript is read as a fallback rather than thrown away.
+ * Scans from the last `{` backwards, so a summary printed after the object cannot confuse it.
+ */
+export function parseAgentAnswer(output: string): unknown {
+  const text = output.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '')
+
+  const fenced = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map((m) => m[1].trim())
+  for (const block of fenced.reverse()) {
+    try {
+      const parsed: unknown = JSON.parse(block)
+      if (parsed && typeof parsed === 'object') return parsed
+    } catch {
+      /* not this block */
+    }
+  }
+
+  // No usable fence: take the widest balanced object in the text, largest first.
+  const starts: number[] = []
+  for (let i = 0; i < text.length; i++) if (text[i] === '{') starts.push(i)
+  for (const start of starts) {
+    for (let end = text.lastIndexOf('}'); end > start; end = text.lastIndexOf('}', end - 1)) {
+      try {
+        const parsed: unknown = JSON.parse(text.slice(start, end + 1))
+        if (parsed && typeof parsed === 'object') return parsed
+      } catch {
+        /* keep shrinking */
+      }
+    }
+  }
+  return null
+}
+
+const cleanText = (value: unknown, max = 160): string | undefined =>
+  typeof value === 'string' && value.trim().length > 0 && value.length <= max
+    ? value.trim()
+    : undefined
+
+/** A flat token map — colours, radii, spacing. Anything not a plain string is dropped. */
+function tokenMap(value: unknown, limit = 48): Record<string, string> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const out: Record<string, string> = {}
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const clean = cleanText(raw, 200)
+    if (clean && /^[a-z0-9-]{1,40}$/i.test(key)) out[key] = clean
+    if (Object.keys(out).length >= limit) break
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
+const COMPONENT_KEYS = [
+  'backgroundColor',
+  'textColor',
+  'borderColor',
+  'borderWidth',
+  'rounded',
+  'padding',
+  'height',
+  'shadow',
+  'typography'
+] as const
+
+function componentSpec(value: unknown): ComponentSpec | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const out: ComponentSpec = {}
+  for (const key of COMPONENT_KEYS) {
+    const clean = cleanText((value as Record<string, unknown>)[key], 200)
+    if (clean) out[key] = clean
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
+function typography(value: unknown): Record<string, TypeToken> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const out: Record<string, TypeToken> = {}
+  for (const [name, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!raw || typeof raw !== 'object' || !/^[a-z0-9-]{1,40}$/i.test(name)) continue
+    const token = raw as Record<string, unknown>
+    const family = cleanText(token.fontFamily, 200)
+    const size = cleanText(token.fontSize, 40)
+    if (!family || !size) continue
+    const built: TypeToken = {
+      fontFamily: family,
+      fontSize: size,
+      fontWeight: cleanText(token.fontWeight, 20) ?? '400',
+      lineHeight: cleanText(token.lineHeight, 20) ?? 'normal'
+    }
+    const spacing = cleanText(token.letterSpacing, 20)
+    if (spacing) built.letterSpacing = spacing
+    out[name] = built
+    if (Object.keys(out).length >= 24) break
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
+/**
+ * Folds an agent's answer onto the measured spec. The agent is only ever allowed to correct
+ * what the heuristics *interpreted* — colours, type, radii, spacing, components. Facts the
+ * page reported directly (breakpoints, CSS variables, shadows) and the font resolution stay
+ * Nisaba's, and anything the agent leaves out or malforms keeps its measured value.
+ *
+ * Exported and pure so it can be checked without running an agent.
+ */
+export function mergeRefined(measured: DesignSpec, answer: unknown): DesignSpec {
+  const base = upgradeSpec(measured)
+  if (!answer || typeof answer !== 'object') return base
+  const input = answer as Record<string, unknown>
+
+  const components: Record<string, ComponentSpec> = { ...base.components }
+  const given = input.components
+  if (given && typeof given === 'object') {
+    for (const name of COMPONENT_ORDER) {
+      const spec = componentSpec((given as Record<string, unknown>)[name])
+      if (spec) components[name] = spec
+    }
+  }
+
+  const colors = { ...base.colors, ...(tokenMap(input.colors) ?? {}) }
+  const rounded = tokenMap(input.rounded) ?? base.rounded
+  const spacing = tokenMap(input.spacing) ?? base.spacing
+  const type = typography(input.typography) ?? base.typography
+
+  // Fonts stay derived rather than dictated: the agent names a family, Nisaba decides which
+  // Google face stands in for it, the same way a measured profile does.
+  const bodyStack = type['body-md']?.fontFamily ?? base.fonts.body.requested
+  const headingStack =
+    type['headline-lg']?.fontFamily ?? type['headline-md']?.fontFamily ?? bodyStack
+
+  // Whatever the agent did not name still has to exist, and is still labelled as derived.
+  const derived = completeComponents(components, {
+    colors,
+    rounded,
+    spacing,
+    height: components['button-primary']?.height ?? '40px'
+  })
+
+  return {
+    ...base,
+    description: cleanText(input.description, 400) ?? base.description,
+    colors,
+    typography: type,
+    rounded,
+    spacing,
+    components,
+    fonts: { body: resolveFont(bodyStack), heading: resolveFont(headingStack) },
+    derived
+  }
+}

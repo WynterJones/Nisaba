@@ -1,7 +1,7 @@
-import { app, net, protocol, shell } from 'electron'
+import { app, nativeImage, net, protocol, shell } from 'electron'
 import { randomUUID } from 'crypto'
-import { mkdir, writeFile, rm } from 'fs/promises'
-import { join, relative, isAbsolute } from 'path'
+import { mkdir, writeFile, rm, stat } from 'fs/promises'
+import { dirname, join, relative, isAbsolute } from 'path'
 import { pathToFileURL } from 'url'
 import type { DesignSpec, Levels } from '../shared/design-spec'
 
@@ -80,7 +80,6 @@ export type ElementRecord = Base & {
   label: string
   host: string
   url: string
-  selector: string
   file: string
   rect: Rect
   states: ElementState[]
@@ -107,6 +106,8 @@ export type DesignSystemRecord = Base & {
   typeScale: { tag: string; size: string; weight: string; lineHeight: string; family: string }[]
   /** The DESIGN.md model. Absent on profiles captured before component sampling landed. */
   spec?: DesignSpec
+  /** When an agent last corrected the measured spec, if it ever has. */
+  refinedAt?: number
   levels?: Levels
   designMd: string
 }
@@ -293,7 +294,12 @@ export async function patchRecord<K extends Collection>(
 export async function removeRecord(kind: Collection, id: string): Promise<void> {
   const { remove } = await import('./db')
   const record = remove(kind, id) as { file?: string } | null
-  if (record?.file) await rm(join(libraryRoot(), record.file), { force: true })
+  if (!record?.file) return
+  // The cached thumbnail is derived from the file, so it goes with it.
+  await Promise.all([
+    rm(join(libraryRoot(), record.file), { force: true }),
+    rm(thumbPath(record.file), { force: true })
+  ])
 }
 
 export function newId(): string {
@@ -335,6 +341,45 @@ export function registerLibraryProtocolScheme(): void {
   ])
 }
 
+/** Grid tiles are ~240px wide on a 2x display; 480 covers them without a second decode. */
+const THUMB_WIDTH = 480
+
+/**
+ * A full-page capture is often 1440x20000. Chromium holds every decoded image as a raw bitmap,
+ * so one of those costs ~115MB of RAM and a slow decode — a library page full of them is what
+ * makes the whole UI crawl, and `loading="lazy"` does not help once they have been scrolled
+ * past. `?thumb` serves a small copy instead, built once and cached beside the library.
+ *
+ * The copy is cropped to its top before scaling, because that is the part a grid tile shows;
+ * scaling a 20000px-tall image whole leaves a 6000px sliver that is barely cheaper than the
+ * original.
+ */
+function thumbPath(rel: string): string {
+  return join(libraryRoot(), '.thumbs', rel.replace(/[\\/]/g, '_'))
+}
+
+async function thumbnail(target: string, rel: string): Promise<string | null> {
+  const cache = thumbPath(rel)
+  try {
+    const [source, cached] = await Promise.all([stat(target), stat(cache).catch(() => null)])
+    if (cached && cached.mtimeMs >= source.mtimeMs) return cache
+
+    const image = nativeImage.createFromPath(target)
+    if (image.isEmpty()) return null
+    const { width, height } = image.getSize()
+    if (width <= THUMB_WIDTH && height <= THUMB_WIDTH) return null
+
+    const box = Math.min(height, Math.round(width * 0.75))
+    const cropped = height > box ? image.crop({ x: 0, y: 0, width, height: box }) : image
+    await mkdir(dirname(cache), { recursive: true })
+    await writeFile(cache, cropped.resize({ width: THUMB_WIDTH, quality: 'good' }).toPNG())
+    return cache
+  } catch {
+    // A thumbnail is an optimisation; failing to build one must still show the capture.
+    return null
+  }
+}
+
 export function registerLibraryProtocol(): void {
   protocol.handle('nisaba', async (request) => {
     const url = new URL(request.url)
@@ -343,6 +388,8 @@ export function registerLibraryProtocol(): void {
     const rel = relative(root, target)
     // Refuse anything that escapes the library folder.
     if (rel.startsWith('..') || isAbsolute(rel)) return new Response('Forbidden', { status: 403 })
-    return net.fetch(pathToFileURL(target).toString())
+
+    const file = url.searchParams.has('thumb') ? ((await thumbnail(target, rel)) ?? target) : target
+    return net.fetch(pathToFileURL(file).toString())
   })
 }

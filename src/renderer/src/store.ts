@@ -43,7 +43,7 @@ type AppState = {
   sidebarCollapsed: boolean
   jobsOpen: boolean
 
-  newTab: (url?: string) => string
+  newTab: (url?: string, background?: boolean) => string
   closeTab: (id: string) => void
   activateTab: (id: string) => void
   patchTab: (patch: Partial<TabState> & { id: string }) => void
@@ -86,10 +86,15 @@ export const useApp = create<AppState>((set, get) => ({
   jobsOpen: false,
   viewportMounted: false,
 
-  newTab: (url = '') => {
+  newTab: (url = '', background = false) => {
     const id = nextId()
-    set((s) => ({ tabs: [...s.tabs, blankTab(id, url)], activeTabId: id }))
-    void window.api.browser.open(id, url)
+    // A background tab still takes the viewport when there is nothing else in it to show.
+    const activate = !background || get().activeTabId === null
+    set((s) => ({
+      tabs: [...s.tabs, blankTab(id, url)],
+      activeTabId: activate ? id : s.activeTabId
+    }))
+    void window.api.browser.open(id, url, activate)
     return id
   },
 

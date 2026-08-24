@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Camera,
   ChevronDown,
-  Columns2,
   Crop,
   ExternalLink,
   Layers,
@@ -36,7 +35,6 @@ import {
   startExtract
 } from '@/actions'
 import { useAudit } from '@/audit'
-import { Compare } from '@/components/shell/compare'
 import { ElementPicker } from '@/components/shell/element-picker'
 import type { ViewportPreset } from '@/actions'
 import { useActiveTab, useApp } from '@/store'
@@ -153,7 +151,6 @@ export function BrowserToolbar(): React.JSX.Element {
   const { picking, selection, inspectorOpen, inspectorTab, toggleInspector, openInspector, setOverlay } =
     useApp()
   const [candidates, setCandidates] = useState<ElementCandidate[] | null>(null)
-  const [comparing, setComparing] = useState(false)
   const audit = useAudit()
   const [scanning, setScanning] = useState(false)
   const disabled = !tab
@@ -173,14 +170,6 @@ export function BrowserToolbar(): React.JSX.Element {
     <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-border bg-background px-3">
       {candidates && (
         <ElementPicker candidates={candidates} onClose={() => setCandidates(null)} />
-      )}
-      {comparing && (
-        <Compare
-          onClose={() => {
-            setComparing(false)
-            setOverlay(false)
-          }}
-        />
       )}
       <div className="flex items-center">
         <Button
@@ -340,18 +329,6 @@ export function BrowserToolbar(): React.JSX.Element {
           aria-label="Toggle inspector"
         >
           <PanelRight className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Compare two captures — side by side, overlaid or by difference"
-          aria-label="Compare captures"
-          onClick={() => {
-            setOverlay(true)
-            setComparing(true)
-          }}
-        >
-          <Columns2 className="size-4" />
         </Button>
       </div>
     </div>

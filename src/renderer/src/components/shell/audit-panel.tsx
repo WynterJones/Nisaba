@@ -70,7 +70,7 @@ function PinCard({ pin }: { pin: AuditPin }): React.JSX.Element {
 
       {pin.shot && (
         <img
-          src={window.api.library.url(pin.shot)}
+          src={window.api.library.url(pin.shot, true)}
           alt=""
           className="max-h-24 w-full rounded border border-border object-cover object-top"
         />

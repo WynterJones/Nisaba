@@ -10,6 +10,8 @@ import {
   resolveFont,
   toDesignMd,
   upgradeSpec,
+  mergeRefined,
+  parseAgentAnswer,
   DEFAULT_LEVELS,
   type DesignSpec
 } from '../src/shared/design-spec.ts'
@@ -174,3 +176,74 @@ assert.ok(legacyMd.includes('Nunito Sans'), 'Circular should stand in as Nunito 
 assert.equal(upgradeSpec(fixed), fixed, 'a complete spec is returned untouched')
 
 console.log('legacy spec ok:', legacyMd.length, 'bytes,', fixed.derived.length, 'derived')
+
+// An agent's answer is folded onto the measured spec, never trusted wholesale: it may correct
+// what the heuristics interpreted, but malformed or missing keys must fall back to what was
+// measured, and page facts must survive untouched.
+const measured = upgradeSpec(legacy)
+const answer = {
+  description: 'A calm blue system with rectangular controls.',
+  colors: { primary: 'rgb(37, 99, 235)', 'on-primary': 'rgb(255, 255, 255)' },
+  components: {
+    // The exact failure this pass exists to fix: a pill radius read off something that is not
+    // a pill, with a height too small for its own padding.
+    'button-primary': {
+      backgroundColor: 'rgb(37, 99, 235)',
+      textColor: 'rgb(255, 255, 255)',
+      rounded: '8px',
+      padding: '12px 24px',
+      height: '48px',
+      typography: '{typography.label-md}'
+    },
+    // Junk must not survive: wrong types, and a component name that is not in the spec.
+    'input-field': { rounded: { nope: true }, padding: 42 },
+    'not-a-component': { backgroundColor: 'red' }
+  },
+  typography: { 'body-md': { fontFamily: 'Inter', fontSize: '16px', lineHeight: '24px' } },
+  notes: { variables: { evil: 'should be ignored' } }
+}
+
+const refined = mergeRefined(measured, answer)
+assert.equal(refined.components['button-primary'].rounded, '8px', 'the agent may fix a radius')
+assert.equal(refined.components['button-primary'].height, '48px')
+assert.equal(refined.colors.primary, 'rgb(37, 99, 235)', 'the agent may fix a colour')
+assert.equal(refined.colors.surface, measured.colors.surface, 'unnamed colours are kept')
+assert.equal(
+  refined.components['input-field'].rounded,
+  measured.components['input-field'].rounded,
+  'a malformed component keeps its measured values'
+)
+assert.equal(refined.components['input-field'].padding, measured.components['input-field'].padding)
+assert.ok(!refined.components['not-a-component'], 'unknown component names are dropped')
+assert.deepEqual(refined.notes, measured.notes, 'measured page facts are not the agent’s to change')
+assert.equal(refined.fonts.body.google, 'Inter', 'fonts stay resolved by Nisaba, from the family')
+assert.ok(COMPONENT_ORDER.every((n) => refined.components[n]), 'the result is still complete')
+
+// A refusal, a truncated file or plain garbage must leave the measured spec intact.
+for (const junk of [null, 'sorry, I cannot do that', 42, [], { components: 'nope' }]) {
+  assert.deepEqual(mergeRefined(measured, junk).components, measured.components, `junk: ${JSON.stringify(junk)}`)
+}
+
+console.log('merge ok:', Object.keys(refined.components).length, 'components,', refined.derived.length, 'derived')
+
+// Agents are asked to write refined.json and routinely answer in the transcript instead, so
+// the transcript has to be readable — fenced, surrounded by prose, and with a summary after it.
+const transcript = `I read the screenshot and the page CSS.
+
+\`\`\`json
+{ "colors": { "primary": "rgb(37, 124, 255)" },
+  "components": { "button-primary": { "rounded": "4px", "padding": "18px 51px" } } }
+\`\`\`
+
+Main correction: button-primary was the round Intercom bubble { not json }.`
+const recovered = mergeRefined(measured, parseAgentAnswer(transcript))
+assert.equal(recovered.colors.primary, 'rgb(37, 124, 255)', 'a fenced answer must be recovered')
+assert.equal(recovered.components['button-primary'].rounded, '4px')
+assert.equal(parseAgentAnswer('no json here at all'), null, 'prose alone yields nothing')
+assert.deepEqual(
+  parseAgentAnswer('Here you go: {"colors":{"primary":"red"}} — done.'),
+  { colors: { primary: 'red' } },
+  'an unfenced object must still be found'
+)
+
+console.log('transcript fallback ok')

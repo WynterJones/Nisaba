@@ -62,9 +62,10 @@ async function detect(id: AgentInstallation['id'], label: string): Promise<Agent
   return { id, label, path, version }
 }
 
+export async function detectAgents(): Promise<AgentInstallation[]> {
+  return [await detect('claude', 'Claude Code CLI'), await detect('codex', 'Codex CLI')]
+}
+
 export function registerAgentIpc(): void {
-  ipcMain.handle('agents:detect', async (): Promise<AgentInstallation[]> => [
-    await detect('claude', 'Claude Code CLI'),
-    await detect('codex', 'Codex CLI')
-  ])
+  ipcMain.handle('agents:detect', detectAgents)
 }

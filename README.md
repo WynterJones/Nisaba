@@ -58,12 +58,15 @@ folder of tasks an agent can work straight through.
 variables a page actually uses, into an editable `design.md` and `tokens.json`. Observed values and
 inferred ones stay labelled apart.
 
+**Refine with agent** — a measured profile is a guess: the heuristics pick one button, one input
+and one card out of everything on the page, and sometimes that is a chat bubble rather than the
+CTA. Hand the profile to the Claude Code or Codex CLI you already have installed and it reads the
+screenshot and every sample Nisaba took, then corrects the spec. Its answer is validated and
+folded onto the measurement — it may fix what was interpreted, never what was observed.
+
 **Element Style Matrix** — find the buttons, inputs, cards and badges on a page, collapse visually
 identical instances into variants, and screenshot each interaction state the page really declares
 rules for.
-
-**Compare** — two captures side by side, overlaid with an opacity slider, or as a pixel difference
-computed locally, with a percentage-changed readout.
 
 **Organize** — Captures, Sections, Elements, Design Systems, Audits, Resources, Sites and
 Bookmarks, all searchable, filterable and on your own disk. Export the whole library as a plain
@@ -84,8 +87,8 @@ near-duplicates and answer "what else looks like this" without leaving your mach
 stopping at the first failure. It is only marked verified when they all pass, or when you
 explicitly override a failure.
 
-**Preview** — start the workspace's dev server from inside Nisaba, open what it serves in a tab,
-and compare it against the source capture it was built from.
+**Preview** — start the workspace's dev server from inside Nisaba and open what it serves in a
+tab, next to the source capture it was built from.
 
 **SQLite** — the library is a real database with full-text search, using Node's built-in driver.
 No native module, nothing to rebuild per platform. An older JSON index is migrated on first run and

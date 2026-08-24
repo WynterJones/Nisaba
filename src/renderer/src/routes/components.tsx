@@ -199,7 +199,7 @@ function Detail({
                     className="flex items-center gap-2 rounded-lg border border-border p-1.5 text-left transition-colors hover:border-brand/50"
                   >
                     <img
-                      src={window.api.library.url(section.file)}
+                      src={window.api.library.url(section.file, true)}
                       alt=""
                       className="h-8 w-12 shrink-0 rounded object-cover object-top"
                     />

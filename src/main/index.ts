@@ -6,6 +6,7 @@ import { registerCaptureIpc } from './capture'
 import { registerExtractIpc } from './extract'
 import { registerAgentIpc } from './agents'
 import { registerDesignIpc } from './design'
+import { registerDesignRefineIpc } from './design-refine'
 import { registerElementIpc } from './elements'
 import { registerWorkspaceIpc } from './workspaces'
 import { registerJobIpc, reconcileJobs } from './jobs'
@@ -92,6 +93,7 @@ app.whenReady().then(() => {
   registerExtractIpc()
   registerAgentIpc()
   registerDesignIpc()
+  registerDesignRefineIpc()
   registerElementIpc()
   registerWorkspaceIpc()
   registerJobIpc()

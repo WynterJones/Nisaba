@@ -21,6 +21,7 @@ import type { AgentInstallation } from '../main/agents'
 import type { ElementCandidate } from '../main/elements'
 import type { WorkspaceProbe } from '../main/workspaces'
 import type { PinContext } from '../main/audit'
+import type { RefineState } from '../main/design-refine'
 import type { Needle, SourceMatch } from '../main/sourcemap'
 import type { SimilarHit } from '../main/similarity'
 import type { Check, PreviewState } from '../main/verify'
@@ -28,7 +29,16 @@ import type { UpdateState } from '../main/updater'
 import type { TerminalSummary } from '../main/terminals'
 import type { DesignSpec, Levels } from '../shared/design-spec'
 
-export type { Check, DesignSpec, Levels, PreviewState, SimilarHit, TerminalSummary, UpdateState }
+export type {
+  Check,
+  DesignSpec,
+  Levels,
+  PreviewState,
+  RefineState,
+  SimilarHit,
+  TerminalSummary,
+  UpdateState
+}
 
 export type { PinContext, SourceMatch }
 
@@ -109,7 +119,18 @@ const api = {
     profile: (): Promise<DesignSystemRecord> => invoke('design:profile'),
     /** Re-emits DESIGN.md at new shape/density/emphasis levels and files it back. */
     restyle: (record: DesignSystemRecord, levels: Levels): Promise<string> =>
-      invoke('design:restyle', record, levels)
+      invoke('design:restyle', record, levels),
+    /**
+     * Hands the measured profile to the user's agent CLI in a background terminal; it reads the
+     * screenshot and the raw samples and writes back a corrected spec.
+     */
+    refine: (
+      record: DesignSystemRecord,
+      agent?: 'claude' | 'codex'
+    ): Promise<RefineState & { terminal: TerminalSummary }> =>
+      invoke('design:refine', record, agent),
+    onRefined: (cb: (state: RefineState) => void): (() => void) =>
+      subscribe('design:refined', cb)
   },
 
   elements: {
@@ -241,8 +262,13 @@ const api = {
     export: (ids: string[] | null): Promise<{ path: string; files: number } | null> =>
       invoke('library:export', ids),
     import: (): Promise<{ records: number; files: number } | null> => invoke('library:import'),
-    /** Library assets are served over the app-only nisaba:// scheme. */
-    url: (file: string): string => `nisaba://library/${file}`
+    /**
+     * Library assets are served over the app-only nisaba:// scheme. Pass `thumb` anywhere the
+     * image is shown small — a grid tile or a row — or a full-page capture is decoded at full
+     * size just to be drawn 240px wide.
+     */
+    url: (file: string, thumb = false): string =>
+      `nisaba://library/${file}${thumb ? '?thumb' : ''}`
   },
 
   agents: {
@@ -257,7 +283,8 @@ const api = {
   },
 
   browser: {
-    open: (id: string, url: string): Promise<void> => invoke('browser:open', id, url),
+    open: (id: string, url: string, activate = true): Promise<void> =>
+      invoke('browser:open', id, url, activate),
     activate: (id: string): Promise<void> => invoke('browser:activate', id),
     close: (id: string): Promise<void> => invoke('browser:close', id),
     setBounds: (bounds: Bounds): Promise<void> => invoke('browser:set-bounds', bounds),
@@ -271,7 +298,10 @@ const api = {
     flash: (text: string, tone: 'info' | 'error' = 'info'): Promise<void> =>
       invoke('browser:flash', text, tone),
     onTabUpdated: (cb: (patch: Partial<TabState> & { id: string }) => void): (() => void) =>
-      subscribe('browser:tab-updated', cb)
+      subscribe('browser:tab-updated', cb),
+    /** A link the page opened itself — middle-click, cmd-click, target=_blank or the menu. */
+    onOpenTab: (cb: (request: { url: string; background: boolean }) => void): (() => void) =>
+      subscribe('browser:open-tab', cb)
   }
 }
 
