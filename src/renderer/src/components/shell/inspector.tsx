@@ -280,6 +280,9 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
 
   const workspace = workspaces.find((w) => w.id === workspaceId)
   const agent = agents?.find((a) => a.id === workspace?.agent)
+  // A whole-page capture is rooted at <body>; converting one produces a template, not a
+  // component, and that is the only thing that separates the two flows.
+  const kind: 'component' | 'template' = selection?.tag === 'body' ? 'template' : 'component'
 
   /** The agent reads the section from disk, so it is filed automatically when a job runs. */
   const savedSource = selection
@@ -294,14 +297,16 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
         profile,
         sourceIds: [savedSource.id],
         extra,
-        kind: 'component'
+        kind
       })
       .then(setPreview)
       .catch(() => setPreview(null))
-  }, [workspace?.id, profile, extra, savedSource?.id])
+  }, [workspace?.id, profile, extra, savedSource?.id, kind])
 
   if (!selection) {
-    return <Empty hint="Extract a section first — then pick an output profile and an agent." />
+    return (
+      <Empty hint="Extract a section — or capture a whole page as a template — then pick an output profile and an agent." />
+    )
   }
 
   const run = async (): Promise<void> => {
@@ -315,12 +320,14 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
         profile,
         sourceIds: [source.id],
         extra,
-        kind: 'component',
+        kind,
         binary: agent.path,
         name: selection.name
       })
       await refresh()
-      toast.success('Job started', { description: 'Watch it in the Tasks drawer.' })
+      toast.success(kind === 'template' ? 'Template job started' : 'Job started', {
+        description: 'Watch it run in the terminal dock.'
+      })
       void navigate('/jobs')
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
@@ -458,7 +465,7 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
 
         <Button disabled={Boolean(blocker) || starting} onClick={() => void run()}>
           {starting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-          Run job
+          {kind === 'template' ? 'Build template' : 'Run job'}
         </Button>
       </div>
     </ScrollArea>

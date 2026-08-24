@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
 import { useApp, useLibrary } from '@/store'
+import { useTerminals } from '@/terminals'
 
 function fail(error: unknown): void {
   const message = (error instanceof Error ? error.message : String(error))
@@ -18,6 +19,7 @@ async function capture(
     const record = await run()
     if (!record) return void toast.message(cancelled)
     await useLibrary.getState().refresh()
+    toast.success('Saved to Captures', { description: record.kind })
   } catch (error) {
     fail(error)
   }
@@ -25,10 +27,10 @@ async function capture(
 
 export type ViewportPreset = 'mobile' | 'tablet' | 'desktop' | 'current'
 
-export const captureViewport = (preset: ViewportPreset = 'current'): Promise<void> =>
+export const captureViewport = (preset: ViewportPreset = 'desktop'): Promise<void> =>
   capture(() => window.api.capture.viewport(preset), 'Capture cancelled')
 
-export const captureFullPage = (preset: ViewportPreset = 'current'): Promise<void> =>
+export const captureFullPage = (preset: ViewportPreset = 'desktop'): Promise<void> =>
   capture(() => window.api.capture.fullPage(preset), 'Capture cancelled')
 
 export const captureRegion = (): Promise<void> =>
@@ -65,11 +67,36 @@ export async function captureElement(): Promise<void> {
     const draft = await window.api.extract.select()
     if (!draft) return
     const record = await window.api.capture.rect(draft.rect)
-    if (record) await useLibrary.getState().refresh()
+    if (record) {
+      await useLibrary.getState().refresh()
+      toast.success('Saved to Captures', { description: 'element' })
+    }
   } catch (error) {
     fail(error)
   } finally {
     setPicking(false)
+  }
+}
+
+/**
+ * Captures the whole page as a template source and files it, then opens the inspector so it
+ * can be converted. A page is just a section rooted at <body>, so everything downstream — the
+ * source package, the prompt, the job — is the section pipeline unchanged.
+ */
+export async function captureWholePage(): Promise<void> {
+  const id = toast.loading('Reading the whole page…')
+  try {
+    const draft = await window.api.extract.page()
+    if (!draft) return void toast.dismiss(id)
+    const record = await window.api.extract.save(draft)
+    await useLibrary.getState().refresh()
+    const { setSelection, openInspector } = useApp.getState()
+    setSelection(draft)
+    openInspector('ai')
+    toast.success('Page captured', { id, description: `${record.outline?.length ?? 0} blocks — convert it to a template` })
+  } catch (error) {
+    toast.dismiss(id)
+    fail(error)
   }
 }
 
@@ -89,6 +116,22 @@ export async function saveSelection(): Promise<import('../../preload').SectionRe
   } catch (error) {
     fail(error)
     return null
+  }
+}
+
+/**
+ * Writes the audit plan into its workspace and starts the agent on it in a live terminal,
+ * so the run can be watched and answered rather than fired off blind.
+ */
+export async function implementAudit(
+  record: import('../../preload').AuditRecord
+): Promise<void> {
+  try {
+    const session = await window.api.audit.implement(record)
+    useTerminals.getState().show(session.id)
+    toast.success('Agent started on this audit', { description: session.cwd })
+  } catch (error) {
+    fail(error)
   }
 }
 

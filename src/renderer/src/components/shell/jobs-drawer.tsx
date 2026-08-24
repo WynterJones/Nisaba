@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { ChevronUp, FolderOpen, ListTodo, ScrollText, X } from 'lucide-react'
+import { ChevronUp, FolderOpen, ListTodo, ScrollText, SquareTerminal, X } from 'lucide-react'
 import { useApp, useLibrary } from '@/store'
+import { useTerminals } from '@/terminals'
 import { cn } from '@/lib/utils'
 import { STATUS_ICON, STATUS_TINT } from '@/routes/jobs'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,10 @@ function LiveBar(): React.JSX.Element {
 export function JobsDrawer(): React.JSX.Element {
   const { jobsOpen, setJobsOpen } = useApp()
   const { jobs, refresh, remove } = useLibrary()
+  const terminals = useTerminals((s) => s.sessions)
+  const showTerminal = useTerminals((s) => s.show)
+  const newShell = useTerminals((s) => s.newShell)
+  const workspaces = useLibrary((s) => s.workspaces)
   const navigate = useNavigate()
 
   useEffect(() => window.api.jobs.onDone(() => void refresh()), [refresh])
@@ -51,11 +56,24 @@ export function JobsDrawer(): React.JSX.Element {
           </span>
         )}
 
+        {/* The only way in when no terminal exists yet — the dock hides itself when empty. */}
+        <button
+          onClick={() => void newShell(workspaces[0]?.root)}
+          title="Open a terminal in your workspace"
+          className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <SquareTerminal className="size-3.5" />
+          Terminal
+          {terminals.length > 0 && (
+            <span className="rounded bg-secondary px-1 tabular-nums">{terminals.length}</span>
+          )}
+        </button>
+
         {/* Jobs lives here rather than in the sidebar — it belongs with the running work. */}
         <button
           onClick={() => navigate('/jobs')}
           title="Every agent run, with its logs and output"
-          className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <ListTodo className="size-3.5" />
           Jobs
@@ -75,6 +93,7 @@ export function JobsDrawer(): React.JSX.Element {
           {recent.map((job) => {
             const Icon = STATUS_ICON[job.status]
             const last = [...job.events].reverse().find((e) => e.text.trim())
+            const terminal = terminals.find((t) => t.jobId === job.id)
             return (
               <div
                 key={job.id}
@@ -107,6 +126,18 @@ export function JobsDrawer(): React.JSX.Element {
                 <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">
                   {job.status}
                 </span>
+
+                {terminal && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0"
+                    title="Watch this agent's terminal"
+                    onClick={() => showTerminal(terminal.id)}
+                  >
+                    <SquareTerminal className="size-3.5" />
+                  </Button>
+                )}
 
                 {job.status === 'running' ? (
                   <Button

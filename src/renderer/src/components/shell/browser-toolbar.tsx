@@ -8,6 +8,7 @@ import {
   Crop,
   ExternalLink,
   Layers,
+  LayoutTemplate,
   Loader2,
   Monitor,
   Smartphone,
@@ -29,6 +30,7 @@ import {
   captureRegion,
   captureElement,
   captureViewport,
+  captureWholePage,
   detectElements,
   profileDesign,
   startExtract
@@ -230,17 +232,6 @@ export function BrowserToolbar(): React.JSX.Element {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuLabel>Capture</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => void captureViewport()}>
-              <Camera />
-              Visible viewport
-              <DropdownMenuShortcut>⌘⇧2</DropdownMenuShortcut>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void captureFullPage()}>
-              <Layers />
-              Full scrollable page
-              <DropdownMenuShortcut>⌘⇧3</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
             {/* The page is narrowed to the preset for the shot, then put back. */}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
@@ -259,10 +250,12 @@ export function BrowserToolbar(): React.JSX.Element {
                       <DropdownMenuItem onSelect={() => void captureViewport(id)}>
                         <Camera />
                         Visible viewport
+                        {id === 'desktop' && <DropdownMenuShortcut>⌘⇧2</DropdownMenuShortcut>}
                       </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => void captureFullPage(id)}>
                         <Layers />
                         Full page
+                        {id === 'desktop' && <DropdownMenuShortcut>⌘⇧3</DropdownMenuShortcut>}
                       </DropdownMenuItem>
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
@@ -278,6 +271,10 @@ export function BrowserToolbar(): React.JSX.Element {
             <DropdownMenuItem onSelect={() => void captureElement()}>
               <SquareDashedMousePointer />
               Pick an element
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void captureWholePage()}>
+              <LayoutTemplate />
+              Whole page as a template
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Analyse</DropdownMenuLabel>

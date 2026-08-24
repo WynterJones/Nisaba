@@ -15,6 +15,7 @@ import { registerAuditExportIpc } from './audit-export'
 import { registerSourceMapIpc } from './sourcemap'
 import { registerSimilarityIpc } from './similarity'
 import { registerVerifyIpc, stopAllPreviews } from './verify'
+import { killAllTerminals, registerTerminalIpc } from './terminals'
 import { writeFile } from 'fs/promises'
 import {
   addRecord,
@@ -100,6 +101,7 @@ app.whenReady().then(() => {
   registerSourceMapIpc()
   registerSimilarityIpc()
   registerVerifyIpc()
+  registerTerminalIpc()
   void reconcileJobs()
 
   ipcMain.handle('library:read', () => readIndex())
@@ -145,9 +147,13 @@ app.whenReady().then(() => {
   registerUpdaterIpc()
 })
 
-app.on('before-quit', stopAllPreviews)
+app.on('before-quit', () => {
+  stopAllPreviews()
+  killAllTerminals()
+})
 
 app.on('window-all-closed', () => {
   stopAllPreviews()
+  killAllTerminals()
   if (process.platform !== 'darwin') app.quit()
 })

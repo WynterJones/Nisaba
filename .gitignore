@@ -6,3 +6,4 @@ dist/
 .env
 .farmwork/
 outputs/
+.serena/

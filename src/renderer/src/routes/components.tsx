@@ -346,7 +346,7 @@ function Grid({ kind }: { kind: 'components' | 'templates' }): React.JSX.Element
         emptyBlurb={
           kind === 'components'
             ? 'Save a section, open the AI tab in the inspector, choose a workspace and convert. What the agent writes lands here with a full trail back to the page it came from.'
-            : 'Pick several saved sections, order them, and let the agent assemble them into one page. Templates keep every source they were built from.'
+            : 'Open a page in Browse, choose Capture → Whole page as a template, then convert it in the inspector. Nisaba hands the agent the whole page — its markup, its block outline and a full-page screenshot — and files the result here with a trail back to the URL.'
         }
       >
         {(shown) => (

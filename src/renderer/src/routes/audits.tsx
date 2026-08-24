@@ -6,9 +6,11 @@ import {
   FileCode2,
   FolderOpen,
   PenLine,
+  SquareTerminal,
   Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { implementAudit } from '@/actions'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { useApp, useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
@@ -84,6 +86,19 @@ function Detail({
         </ScrollArea>
 
         <div className="flex justify-end gap-2">
+          <Button
+            variant="secondary"
+            disabled={!record.workspaceRoot}
+            title={
+              record.workspaceRoot
+                ? 'Write the plan into the workspace and start the agent on it'
+                : 'This audit has no workspace'
+            }
+            onClick={() => void implementAudit(record)}
+          >
+            <SquareTerminal className="size-4" />
+            Implement with agent
+          </Button>
           {record.exportedTo && (
             <Button variant="secondary" onClick={() => window.api.jobs.open(record.exportedTo!)}>
               <FolderOpen className="size-4" />

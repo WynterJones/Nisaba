@@ -6,6 +6,9 @@ directories:
 files:
   - out/**
   - package.json
+# node-pty ships a .node binary and a spawn-helper that must be real files on disk.
+asarUnpack:
+  - "**/node_modules/node-pty/**"
 publish:
   provider: github
   owner: WynterJones

@@ -1,5 +1,4 @@
 import { BrowserWindow, ipcMain, shell } from 'electron'
-import { spawn, type ChildProcess } from 'child_process'
 import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises'
 import { join, relative } from 'path'
 import {
@@ -13,11 +12,14 @@ import {
   type JobRecord,
   type SectionRecord,
   type TemplateRecord,
-  type WorkspaceRecord
+  type WorkspaceRecord,
+  isPageSource
 } from './library'
 import { isInside } from './workspaces'
+import { killTerminal, openTerminal } from './terminals'
 
-const running = new Map<string, ChildProcess>()
+/** job id → terminal id, so a cancel can find the PTY that is running it. */
+const running = new Map<string, string>()
 
 /** Kept out of the "what did the agent create" scan. */
 const IGNORED = new Set([
@@ -81,12 +83,26 @@ export function resolvePrompt(input: {
     '  brand: replace copy, logos, photography and product names with neutral placeholders.'
   ].join('\n')
 
+  const page = input.sources.length === 1 && isPageSource(input.sources[0]) ? input.sources[0] : null
+
   const task = [
     '',
     `## Task`,
-    input.kind === 'template'
-      ? `Assemble the ${input.sources.length} captured sections below into one page, in the order given.`
-      : `Rebuild the captured section below as a reusable component.`,
+    page
+      ? `Rebuild the captured page below as one complete, self-contained template.`
+      : input.kind === 'template'
+        ? `Assemble the ${input.sources.length} captured sections below into one page, in the order given.`
+        : `Rebuild the captured section below as a reusable component.`,
+    ...(page
+      ? [
+          '',
+          'Work top to bottom through the outline. Every block in it must exist in the output, in',
+          'the same order, at roughly the same visual weight. Split the page into one component',
+          'per block where the profile allows it, and compose them in a single page file.',
+          'Match the responsive behaviour you can infer from the markup — this is a full page, so',
+          'the layout at narrow widths matters as much as the desktop one.'
+        ]
+      : []),
     '',
     `## Output`,
     profile.brief,
@@ -101,6 +117,18 @@ export function resolvePrompt(input: {
         `${i + 1}/styles.json — computed styles on the root element`,
         `${i + 1}/variables.json — CSS custom properties in scope`
       ]
+      if (section.outline?.length) files.push(`${i + 1}/outline.json — the page's blocks, in order`)
+      const outline = section.outline?.length
+        ? [
+            '',
+            `#### Page outline (${section.outline.length} blocks, in document order)`,
+            ...section.outline.map(
+              (block) =>
+                `${block.index}. \`${block.tag}\`${block.heading ? ` — “${block.heading}”` : ''} · ${block.height}px tall · \`${block.selector}\``
+            )
+          ]
+        : []
+
       return [
         '',
         `### Source ${i + 1}: ${section.name}`,
@@ -110,7 +138,8 @@ export function resolvePrompt(input: {
         `- Fonts observed: ${section.fonts.join(', ') || 'none detected'}`,
         `- Palette observed: ${section.colors.slice(0, 8).join(', ') || 'none detected'}`,
         `- Detected stack: ${section.tech.map((t) => `${t.name} (${Math.round(t.confidence * 100)}%)`).join(', ') || 'nothing conclusive'}`,
-        `- Files: ${files.join('; ')}`
+        `- Files: ${files.join('; ')}`,
+        ...outline
       ].join('\n')
     })
     .join('\n')
@@ -157,6 +186,10 @@ async function writeSourcePackage(
         2
       )
     )
+    // A page source ships its block list too — it is what the agent works down.
+    if (section.outline?.length) {
+      await writeFile(join(sub, 'outline.json'), JSON.stringify(section.outline, null, 2))
+    }
     const png = await readFile(join(libraryRoot(), section.file)).catch(() => null)
     if (png) await writeFile(join(sub, 'screenshot.png'), png)
   }
@@ -285,64 +318,79 @@ export function registerJobIpc(): void {
         broadcast('jobs:event', { id, event })
       }
 
-      const child = spawn(invocation.file, invocation.args, {
+      // The agent runs on a real PTY so its TUI works and the user can answer it mid-run;
+      // the same bytes feed the job log, so nothing downstream had to change.
+      const terminal = openTerminal({
+        title: input.name,
         cwd: workspace.root,
-        env: { ...process.env, NISABA_JOB: id },
-        stdio: ['ignore', 'pipe', 'pipe']
-      })
-      running.set(id, child)
+        file: invocation.file,
+        args: invocation.args,
+        display: invocation.display,
+        env: { NISABA_JOB: id },
+        jobId: id,
+        onData: (chunk) => push('stdout', chunk),
+        onExit: async (code, signal) => {
+          running.delete(id)
+          // 15 is SIGTERM — the only signal `jobs:cancel` ever sends.
+          const cancelled = signal === 15
+          const status: JobRecord['status'] = cancelled
+            ? 'cancelled'
+            : code === 0
+              ? 'done'
+              : 'failed'
+          const files = await changedSince(workspace.root, startedAt).catch(() => [])
+          const produced = files.filter((f) => !f.startsWith('.nisaba'))
 
-      child.stdout?.on('data', (chunk: Buffer) => push('stdout', chunk.toString()))
-      child.stderr?.on('data', (chunk: Buffer) => push('stderr', chunk.toString()))
+          push(
+            'system',
+            cancelled
+              ? 'Cancelled.'
+              : `Exited with code ${code}. ${produced.length} file(s) changed.`
+          )
 
-      child.on('error', (error) => push('system', `Failed to start: ${error.message}`))
+          await patchRecord('jobs', id, {
+            status,
+            endedAt: Date.now(),
+            events,
+            error: status === 'failed' ? `Agent exited with code ${code}` : null
+          })
 
-      child.on('close', async (code, signal) => {
-        running.delete(id)
-        const cancelled = signal === 'SIGTERM'
-        const status: JobRecord['status'] = cancelled ? 'cancelled' : code === 0 ? 'done' : 'failed'
-        const files = await changedSince(workspace.root, startedAt).catch(() => [])
-        const produced = files.filter((f) => !f.startsWith('.nisaba'))
-
-        push('system', cancelled ? 'Cancelled.' : `Exited with code ${code}. ${produced.length} file(s) changed.`)
-
-        await patchRecord('jobs', id, {
-          status,
-          endedAt: Date.now(),
-          events,
-          error: status === 'failed' ? `Agent exited with code ${code}` : null
-        })
-
-        if (status === 'done' && produced.length > 0) {
-          const componentId = newId()
-          const record: ComponentRecord = {
-            id: componentId,
-            createdAt: Date.now(),
-            name: input.name,
-            framework: PROFILES[input.profile]?.label ?? input.profile,
-            workspaceId: workspace.id,
-            jobId: id,
-            dir: workspace.root,
-            files: produced,
-            sourceIds: input.sourceIds,
-            verified: false
+          if (status === 'done' && produced.length > 0) {
+            const componentId = newId()
+            const record: ComponentRecord = {
+              id: componentId,
+              createdAt: Date.now(),
+              name: input.name,
+              framework: PROFILES[input.profile]?.label ?? input.profile,
+              workspaceId: workspace.id,
+              jobId: id,
+              dir: workspace.root,
+              files: produced,
+              sourceIds: input.sourceIds,
+              verified: false
+            }
+            if (input.kind === 'template') {
+              await addRecord('templates', {
+                ...record,
+                pages: produced.filter((f) => /\.(html|tsx|jsx|vue|astro)$/.test(f))
+              } as TemplateRecord)
+            } else {
+              await addRecord('components', record)
+            }
           }
-          if (input.kind === 'template') {
-            await addRecord('templates', { ...record, pages: produced.filter((f) => /\.(html|tsx|jsx|vue|astro)$/.test(f)) } as TemplateRecord)
-          } else {
-            await addRecord('components', record)
-          }
+
+          broadcast('jobs:done', { id, status })
         }
-
-        broadcast('jobs:done', { id, status })
       })
+      running.set(id, terminal.id)
 
       return job
     }
   )
 
   ipcMain.handle('jobs:cancel', async (_e, id: string) => {
-    running.get(id)?.kill('SIGTERM')
+    const terminalId = running.get(id)
+    if (terminalId) killTerminal(terminalId)
   })
 
   ipcMain.handle('jobs:open', async (_e, dir: string, file?: string) => {

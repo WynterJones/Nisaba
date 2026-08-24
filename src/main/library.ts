@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { mkdir, writeFile, rm } from 'fs/promises'
 import { join, relative, isAbsolute } from 'path'
 import { pathToFileURL } from 'url'
+import type { DesignSpec, Levels } from '../shared/design-spec'
 
 export type Rect = { x: number; y: number; width: number; height: number }
 
@@ -62,7 +63,13 @@ export type SectionRecord = Base & {
   assets: string[]
   a11y: { role: string; name: string; headings: string[] }
   tech: { name: string; confidence: number; evidence: string }[]
+  /** Present only on whole-page captures — the top-level blocks, in document order. */
+  outline?: { index: number; tag: string; selector: string; heading: string; height: number }[]
+  pageTitle?: string
 }
+
+/** A whole-page capture is a section rooted at `<body>`; that is what makes it a template source. */
+export const isPageSource = (section: Pick<SectionRecord, 'tag'>): boolean => section.tag === 'body'
 
 export type ElementState = { state: string; file: string; styles: Record<string, string> }
 
@@ -98,6 +105,9 @@ export type DesignSystemRecord = Base & {
     variables: Record<string, string>
   }
   typeScale: { tag: string; size: string; weight: string; lineHeight: string; family: string }[]
+  /** The DESIGN.md model. Absent on profiles captured before component sampling landed. */
+  spec?: DesignSpec
+  levels?: Levels
   designMd: string
 }
 

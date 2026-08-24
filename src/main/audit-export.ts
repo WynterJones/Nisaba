@@ -1,7 +1,9 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { copyFile, mkdir, writeFile } from 'fs/promises'
-import { join } from 'path'
-import { libraryRoot, type AuditPin, type AuditRecord } from './library'
+import { join, relative } from 'path'
+import { libraryRoot, readIndex, type AuditPin, type AuditRecord } from './library'
+import { openTerminal, type TerminalSummary } from './terminals'
+import { isInside } from './workspaces'
 
 const CATEGORY_LABEL: Record<string, string> = {
   bug: 'bug',
@@ -208,7 +210,57 @@ async function writePlan(dest: string, record: AuditRecord): Promise<{ path: str
   return { path: dest, tasks: record.pins.length, shots }
 }
 
+/**
+ * What the agent is told when it is handed an audit. The plan itself lives on disk — this
+ * only points at it and sets the rules of engagement, so the terminal stays readable.
+ */
+export function implementPrompt(planDir: string, record: AuditRecord): string {
+  return [
+    `Work the design audit in ${planDir}.`,
+    '',
+    `It reviews ${record.url} and contains ${record.pins.length} task(s).`,
+    'Read TASKS.md and work through the tasks in order. For each one: find the element it names,',
+    'make the change in this repository, tick its checkbox in TASKS.md, and say what you changed.',
+    'The screenshots in shots/ show what the reviewer saw. plan.json has the same tasks as data.',
+    '',
+    'If a task’s "Likely source" file is wrong, find the right one and say so. The reviewer notes',
+    'are a person’s words; the selectors, styles and source guesses were measured by Nisaba and',
+    'may be stale. Stop and ask if a task is ambiguous.'
+  ].join('\n')
+}
+
 export function registerAuditExportIpc(): void {
+  /**
+   * Writes the plan into the workspace and hands it to the agent on a live terminal, so the
+   * run can be watched and steered instead of disappearing into a log.
+   */
+  ipcMain.handle(
+    'audit:implement',
+    async (_e, record: AuditRecord, binary?: string): Promise<TerminalSummary> => {
+      const root = record.workspaceRoot
+      if (!root) throw new Error('This audit has no workspace — set one before implementing it')
+
+      const index = await readIndex()
+      const workspace = index.workspaces.find((w) => w.root === root)
+      const agent = workspace?.agent ?? 'claude'
+
+      const planDir = join(root, '.nisaba', 'audits', `${slug(record.name)}-${record.id.slice(0, 8)}`)
+      if (!isInside(root, planDir)) throw new Error('Refusing to write outside the workspace')
+      await writePlan(planDir, record)
+
+      const prompt = implementPrompt(relative(root, planDir) || planDir, record)
+      const file = binary || agent
+      // Both CLIs take an opening prompt as a positional and then stay interactive.
+      return openTerminal({
+        title: `Implement · ${record.name}`,
+        cwd: root,
+        file,
+        args: [prompt],
+        display: `${file} "<audit plan>"`
+      })
+    }
+  )
+
   ipcMain.handle(
     'audit:export',
     async (e, record: AuditRecord, suggestedRoot: string | null) => {

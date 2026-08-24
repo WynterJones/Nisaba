@@ -9,9 +9,11 @@ import {
   Save,
   Search,
   SquareDashedMousePointer,
+  SquareTerminal,
   Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { implementAudit } from '@/actions'
 import { CATEGORIES, useAudit } from '@/audit'
 import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
@@ -180,6 +182,18 @@ export function AuditPanel(): React.JSX.Element {
     }
   }
 
+  /** Saving first is what gives the plan its shots and source matches on disk. */
+  const handOff = async (): Promise<void> => {
+    await stop()
+    const record = await save()
+    if (!record) {
+      toast.error('Pin something first')
+      return
+    }
+    await implementAudit(record)
+    await useLibrary.getState().refresh()
+  }
+
   const unlabelled = pins.filter((p) => !p.note.trim()).length
 
   return (
@@ -270,11 +284,27 @@ export function AuditPanel(): React.JSX.Element {
               Resume
             </Button>
           )}
-          <Button disabled={pins.length === 0} onClick={() => void exportPlan()}>
+          <Button
+            variant="secondary"
+            disabled={pins.length === 0}
+            onClick={() => void exportPlan()}
+          >
             <FileCode2 className="size-4" />
             Export plan
           </Button>
         </div>
+        <Button
+          disabled={pins.length === 0 || !draft?.workspaceRoot}
+          title={
+            draft?.workspaceRoot
+              ? 'Write the plan into the workspace and start the agent on it in a terminal'
+              : 'Pick a workspace first — the agent needs somewhere to work'
+          }
+          onClick={() => void handOff()}
+        >
+          <SquareTerminal className="size-4" />
+          Implement with agent
+        </Button>
         {pins.length > 0 && (
           <Button
             variant="ghost"

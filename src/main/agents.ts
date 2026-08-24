@@ -16,7 +16,7 @@ export type AgentInstallation = {
 }
 
 /** Login shells aren't guaranteed here, so check the usual install locations directly. */
-const SEARCH_PATHS = [
+export const SEARCH_PATHS = [
   '/opt/homebrew/bin',
   '/usr/local/bin',
   '/usr/bin',

@@ -17,7 +17,10 @@ const views = new Map<string, WebContentsView>()
 let activeId: string | null = null
 /** Menus and dialogs hide the page without changing which tab is current. */
 let hidden = false
+/** Overrides `hidden` while a capture is in flight — the page must be composited to be shot. */
+let forceVisible = false
 let lastBounds: Bounds = { x: 0, y: 0, width: 0, height: 0 }
+let mainWindow: BrowserWindow | null = null
 
 /** Remote pages get their own partition and no preload — they can never reach app IPC. */
 function remoteSession(): Electron.Session {
@@ -89,17 +92,18 @@ export async function withVisibleView<T>(fn: (view: WebContentsView) => Promise<
   const wasHidden = hidden
   // Force visibility rather than trusting the flag: a view can also be unpainted because it
   // was added to the window before it had bounds, and capturePage has no surface either way.
-  hidden = false
+  forceVisible = true
   view.setVisible(true)
   await new Promise((resolve) => setTimeout(resolve, wasHidden ? 120 : 40))
 
   try {
     return await fn(view)
   } finally {
-    if (wasHidden) {
-      hidden = true
-      view.setVisible(false)
-    }
+    // Re-run layout instead of restoring the snapshot: the menu closing mid-capture already
+    // asked for the page back, and re-hiding it here is what left a black panel on screen.
+    forceVisible = false
+    if (mainWindow && !mainWindow.isDestroyed()) layout(mainWindow)
+    else view.setVisible(!hidden)
   }
 }
 
@@ -110,13 +114,14 @@ export function viewportBounds(): Bounds {
 
 function layout(win: BrowserWindow): void {
   for (const [id, view] of views) {
-    view.setVisible(!hidden && id === activeId)
+    view.setVisible((forceVisible || !hidden) && id === activeId)
     if (id === activeId) view.setBounds(lastBounds)
   }
   void win
 }
 
 export function registerBrowserIpc(win: BrowserWindow): void {
+  mainWindow = win
   const handle = <T>(channel: string, fn: (...args: never[]) => T): void => {
     ipcMain.handle(channel, (_e, ...args) => fn(...(args as never[])))
   }

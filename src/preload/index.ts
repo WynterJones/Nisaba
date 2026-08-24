@@ -25,8 +25,10 @@ import type { Needle, SourceMatch } from '../main/sourcemap'
 import type { SimilarHit } from '../main/similarity'
 import type { Check, PreviewState } from '../main/verify'
 import type { UpdateState } from '../main/updater'
+import type { TerminalSummary } from '../main/terminals'
+import type { DesignSpec, Levels } from '../shared/design-spec'
 
-export type { Check, PreviewState, SimilarHit, UpdateState }
+export type { Check, DesignSpec, Levels, PreviewState, SimilarHit, TerminalSummary, UpdateState }
 
 export type { PinContext, SourceMatch }
 
@@ -97,12 +99,17 @@ const api = {
 
   extract: {
     select: (): Promise<SectionDraft | null> => invoke('extract:select'),
+    /** The whole page as one template source — same shape as a section, rooted at <body>. */
+    page: (): Promise<SectionDraft | null> => invoke('extract:page'),
     cancel: (): Promise<void> => invoke('extract:cancel'),
     save: (draft: SectionDraft): Promise<SectionRecord> => invoke('extract:save', draft)
   },
 
   design: {
-    profile: (): Promise<DesignSystemRecord> => invoke('design:profile')
+    profile: (): Promise<DesignSystemRecord> => invoke('design:profile'),
+    /** Re-emits DESIGN.md at new shape/density/emphasis levels and files it back. */
+    restyle: (record: DesignSystemRecord, levels: Levels): Promise<string> =>
+      invoke('design:restyle', record, levels)
   },
 
   elements: {
@@ -160,7 +167,30 @@ const api = {
       record: AuditRecord,
       suggestedRoot: string | null
     ): Promise<{ path: string; tasks: number; shots: number } | null> =>
-      invoke('audit:export', record, suggestedRoot)
+      invoke('audit:export', record, suggestedRoot),
+    /** Writes the plan into the workspace and starts an agent on it in a live terminal. */
+    implement: (record: AuditRecord, binary?: string): Promise<TerminalSummary> =>
+      invoke('audit:implement', record, binary)
+  },
+
+  terminal: {
+    list: (): Promise<TerminalSummary[]> => invoke('terminal:list'),
+    shell: (cwd?: string): Promise<TerminalSummary> => invoke('terminal:shell', cwd),
+    attach: (id: string): Promise<{ summary: TerminalSummary; scrollback: string } | null> =>
+      invoke('terminal:attach', id),
+    input: (id: string, data: string): Promise<void> => invoke('terminal:input', id, data),
+    resize: (id: string, cols: number, rows: number): Promise<void> =>
+      invoke('terminal:resize', id, cols, rows),
+    kill: (id: string): Promise<void> => invoke('terminal:kill', id),
+    close: (id: string): Promise<void> => invoke('terminal:close', id),
+    onOpened: (cb: (summary: TerminalSummary) => void): (() => void) =>
+      subscribe('terminal:opened', cb),
+    onData: (cb: (payload: { id: string; data: string }) => void): (() => void) =>
+      subscribe('terminal:data', cb),
+    onExit: (cb: (payload: { id: string; exitCode: number }) => void): (() => void) =>
+      subscribe('terminal:exit', cb),
+    onClosed: (cb: (payload: { id: string }) => void): (() => void) =>
+      subscribe('terminal:closed', cb)
   },
 
   similar: {

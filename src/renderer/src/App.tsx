@@ -6,6 +6,7 @@ import { CommandPalette } from '@/components/shell/command-palette'
 import { JobsDrawer } from '@/components/shell/jobs-drawer'
 import { Sidebar } from '@/components/shell/sidebar'
 import { Splash } from '@/components/shell/splash'
+import { TerminalDock } from '@/components/shell/terminal-dock'
 import { TitleBar } from '@/components/shell/title-bar'
 import Bookmarks from '@/routes/bookmarks'
 import Browse from '@/routes/browse'
@@ -79,6 +80,7 @@ function Shell(): React.JSX.Element {
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
+        <TerminalDock />
         <JobsDrawer />
       </div>
       <CommandPalette />

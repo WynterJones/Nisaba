@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Copy, ExternalLink, FolderOpen, Palette, Trash2 } from 'lucide-react'
+import { Copy, ExternalLink, FolderOpen, Palette, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
+import { DesignPreview } from '@/components/library/design-preview'
+import { DEFAULT_LEVELS, toDesignMd, type Levels } from '../../../shared/design-spec'
 import { useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -47,9 +49,30 @@ function Detail({
   record: DesignSystemRecord
   onClose: () => void
 }): React.JSX.Element {
+  const [levels, setLevels] = useState<Levels>(record.levels ?? DEFAULT_LEVELS)
+  const dirty = JSON.stringify(levels) !== JSON.stringify(record.levels ?? DEFAULT_LEVELS)
+
+  // Re-emitted locally as the dials move; only saving writes it back to disk.
+  const designMd = record.spec
+    ? toDesignMd(
+        record.spec,
+        { url: record.url, host: record.host, capturedAt: record.createdAt },
+        levels
+      )
+    : record.designMd
+
   const copy = (text: string, what: string): void => {
     void navigator.clipboard.writeText(text)
     toast.success(`${what} copied`)
+  }
+
+  const save = async (): Promise<void> => {
+    const written = await window.api.design.restyle(record, levels)
+    await window.api.library.patch('designSystems', record.id, { levels, designMd: written })
+    await useLibrary.getState().refresh()
+    toast.success('design.md updated', {
+      description: `Shape ${levels.shape} · density ${levels.density} · depth ${levels.emphasis}`
+    })
   }
 
   return (
@@ -57,18 +80,22 @@ function Detail({
       <DialogContent className="overflow-hidden sm:max-w-[min(880px,92vw)]">
         <DialogHeader>
           <DialogTitle>{record.name}</DialogTitle>
-          <DialogDescription>
-            Measured from {record.url}. Values marked <em>inferred</em> are Nisaba&apos;s reading of
-            what it observed, not a claim about the site&apos;s real design system.
-          </DialogDescription>
+          <DialogDescription>Measured from {record.url}</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="tokens">
+        <Tabs defaultValue={record.spec ? 'preview' : 'tokens'}>
           <TabsList>
+            {record.spec && <TabsTrigger value="preview">Preview</TabsTrigger>}
             <TabsTrigger value="tokens">Tokens</TabsTrigger>
             <TabsTrigger value="type">Type scale</TabsTrigger>
             <TabsTrigger value="md">design.md</TabsTrigger>
           </TabsList>
+
+          {record.spec && (
+            <TabsContent value="preview">
+              <DesignPreview spec={record.spec} levels={levels} onLevels={setLevels} />
+            </TabsContent>
+          )}
 
           <TabsContent value="tokens">
             <ScrollArea className="h-[52vh]">
@@ -150,14 +177,25 @@ function Detail({
           <TabsContent value="md">
             <ScrollArea className="h-[52vh]">
               <pre className="whitespace-pre-wrap rounded-lg border border-border bg-secondary/30 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-                {record.designMd}
+                {designMd}
               </pre>
             </ScrollArea>
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => copy(record.designMd, 'design.md')}>
+        <div className="flex items-center justify-end gap-2">
+          {dirty && (
+            <span className="mr-auto text-[11px] text-amber-300/80">
+              Levels changed — save to write the new design.md.
+            </span>
+          )}
+          {record.spec && (
+            <Button disabled={!dirty} onClick={() => void save()}>
+              <Save className="size-4" />
+              Save levels
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => copy(designMd, 'design.md')}>
             <Copy className="size-4" />
             Copy design.md
           </Button>

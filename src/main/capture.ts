@@ -301,6 +301,13 @@ export function registerCaptureIpc(): void {
   )
 }
 
+/** Full-page PNG, for the whole-page extractor. Beyond-viewport capture needs CDP. */
+export async function capturePageShot(): Promise<Buffer | null> {
+  if (!activeView()) return null
+  const shot = await withVisibleView((view) => captureFullPage(view))
+  return shot.png
+}
+
 /** Used by the extractor and the auditor to grab just the selected element. */
 export async function captureRect(rect: Rect): Promise<Buffer | null> {
   if (!activeView()) return null
