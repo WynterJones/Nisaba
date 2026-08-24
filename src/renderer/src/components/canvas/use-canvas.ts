@@ -48,7 +48,9 @@ export function useCanvas(
 
     const resize = (): void => {
       const rect = canvas.getBoundingClientRect()
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      // 1x is plenty for a field of 1px dots behind content, and it quarters the fill cost of
+      // every frame on a Retina display.
+      const dpr = 1
       width = rect.width
       height = rect.height
       canvas.width = Math.round(width * dpr)
@@ -92,14 +94,18 @@ export function useCanvas(
     }
 
     const start = (): void => {
-      if (!raf && !reduced && animate) raf = requestAnimationFrame(loop)
+      if (!raf && !reduced && animate && !idle()) raf = requestAnimationFrame(loop)
     }
     const stop = (): void => {
       cancelAnimationFrame(raf)
       raf = 0
     }
 
-    const onVisibility = (): void => (document.hidden ? stop() : start())
+    // `document.hidden` alone is not enough: a native page view composited over the app
+    // leaves the document visible, so this kept painting a canvas nobody could see while the
+    // user was browsing. Focus is the signal that the app is actually being looked at.
+    const idle = (): boolean => document.hidden || !document.hasFocus()
+    const onVisibility = (): void => (idle() ? stop() : start())
 
     const observer = new ResizeObserver(resize)
     observer.observe(canvas)
@@ -108,6 +114,8 @@ export function useCanvas(
     window.addEventListener('pointermove', onMove, { passive: true })
     window.addEventListener('pointerleave', onLeave)
     document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', onVisibility)
+    window.addEventListener('blur', onVisibility)
     start()
 
     return () => {
@@ -116,6 +124,8 @@ export function useCanvas(
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerleave', onLeave)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', onVisibility)
+      window.removeEventListener('blur', onVisibility)
     }
   }, [animate])
 

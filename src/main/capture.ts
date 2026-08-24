@@ -112,27 +112,26 @@ async function captureFullPage(view: WebContentsView): Promise<Shot> {
     const metrics = (await wc.debugger.sendCommand('Page.getLayoutMetrics')) as {
       cssContentSize?: Rect
       contentSize?: Rect
+      cssLayoutViewport?: { clientWidth: number; clientHeight: number }
     }
     const content = metrics.cssContentSize ?? metrics.contentSize
     if (!content) throw new Error('Could not measure the page')
 
+    // `cssContentSize.width` is the document's scroll width, which on a page with any
+    // horizontal overflow — or one that has not finished reflowing after a width change — is
+    // wider than the area that actually painted. Capturing that gap yields white bars down
+    // both sides, so the shot is clamped to the layout viewport the page was laid out at.
+    const laidOutAt = metrics.cssLayoutViewport?.clientWidth
+    const width = Math.round(laidOutAt ? Math.min(content.width, laidOutAt) : content.width)
+    const height = Math.min(Math.round(content.height), MAX_FULLPAGE_HEIGHT)
+
     const result = (await wc.debugger.sendCommand('Page.captureScreenshot', {
       format: 'png',
       captureBeyondViewport: true,
-      clip: {
-        x: 0,
-        y: 0,
-        width: Math.round(content.width),
-        height: Math.min(Math.round(content.height), MAX_FULLPAGE_HEIGHT),
-        scale: 1
-      }
+      clip: { x: 0, y: 0, width, height, scale: 1 }
     })) as { data: string }
 
-    return {
-      png: Buffer.from(result.data, 'base64'),
-      width: Math.round(content.width),
-      height: Math.min(Math.round(content.height), MAX_FULLPAGE_HEIGHT)
-    }
+    return { png: Buffer.from(result.data, 'base64'), width, height }
   } finally {
     if (attachedHere && wc.debugger.isAttached()) wc.debugger.detach()
   }
@@ -221,24 +220,49 @@ export const VIEWPORTS = {
 export type ViewportName = keyof typeof VIEWPORTS
 
 /**
- * Narrows the page to a preset width for the shot, then puts it back. The view keeps its
- * on-screen position so the resize is not visible as a jump.
+ * Lays the page out at a preset width for the shot. This used to resize the native view,
+ * which was visible as a jump, forced a real relayout of the on-screen compositor, and left
+ * `Page.getLayoutMetrics` reporting the pre-resize width often enough to produce white bars.
+ * A CDP metrics override changes only the page's own viewport: nothing on screen moves.
+ *
+ * `fn` is told whether an override is active, because while it is, the compositor is still
+ * showing the old size and only a CDP screenshot sees the emulated layout.
  */
 async function atWidth<T>(
   view: WebContentsView,
   width: number,
-  fn: () => Promise<T>
+  fn: (emulated: boolean) => Promise<T>
 ): Promise<T> {
-  const original = view.getBounds()
-  if (!width || width === original.width) return fn()
+  const bounds = view.getBounds()
+  if (!width || width === bounds.width) return fn(false)
 
-  view.setBounds({ ...original, width })
-  // Layout, then a frame to paint at the new width before the shutter.
-  await new Promise((resolve) => setTimeout(resolve, 420))
+  const wc = view.webContents
+  const attachedHere = !wc.debugger.isAttached()
+  if (attachedHere) wc.debugger.attach('1.3')
+
   try {
-    return await fn()
+    await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', {
+      width,
+      height: bounds.height,
+      // 0 means "keep the host's scale factor" — the shot stays crisp on a Retina display.
+      deviceScaleFactor: 0,
+      mobile: false
+    })
+    // Reflow, then a frame. Far less than the old resize needed, because nothing is being
+    // re-composited on screen — only the page's own layout changes.
+    await new Promise((resolve) => setTimeout(resolve, 180))
+    return await fn(true)
   } finally {
-    view.setBounds(original)
+    await wc.debugger
+      .sendCommand('Emulation.clearDeviceMetricsOverride')
+      .catch(() => undefined /* page navigated away mid-capture */)
+    if (attachedHere && wc.debugger.isAttached()) {
+      try {
+        wc.debugger.detach()
+      } catch {
+        /* already detached */
+      }
+    }
   }
 }
 

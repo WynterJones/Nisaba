@@ -3,6 +3,7 @@ import { useCanvas, type Frame } from '@/components/canvas/use-canvas'
 const SPACING = 30
 const RADIUS = 170
 const DRIFT = 3
+const TAU = Math.PI * 2
 
 /**
  * A lattice of dots that leans toward the cursor and warms to brand purple near it,
@@ -14,40 +15,46 @@ function drawDots({ ctx, width, height, time, pointer }: Frame): void {
   const rows = Math.ceil(height / SPACING) + 1
   const reach = RADIUS * RADIUS
 
+  // The far dots are all the same colour and size, so they go into one path and one fill.
+  // Drawing them individually meant ~1500 beginPath/arc/fill calls per frame, which is what
+  // made this cost real CPU on a full-window canvas.
+  ctx.fillStyle = 'rgba(190, 185, 205, 0.05)'
+  ctx.beginPath()
+  const near: { x: number; y: number; size: number; near: number }[] = []
+
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const baseX = col * SPACING
-      const baseY = row * SPACING
-
       // Two out-of-phase waves keep the drift from looking like a marching grid.
       const wave = Math.sin(time * 0.35 + col * 0.32) + Math.cos(time * 0.27 + row * 0.28)
-      let x = baseX + wave * DRIFT
-      let y = baseY + Math.sin(time * 0.31 + (col + row) * 0.22) * DRIFT
+      let x = col * SPACING + wave * DRIFT
+      let y = row * SPACING + Math.sin(time * 0.31 + (col + row) * 0.22) * DRIFT
 
       const dx = pointer.x - x
       const dy = pointer.y - y
       const distance = dx * dx + dy * dy
 
-      let alpha = 0.05
-      let size = 1
-
       if (distance < reach) {
-        const near = (1 - Math.sqrt(distance) / RADIUS) * pointer.strength
-        const pull = near * near * 9
-        x += (dx / (Math.sqrt(distance) || 1)) * pull
-        y += (dy / (Math.sqrt(distance) || 1)) * pull
-        alpha = 0.05 + near * 0.5
-        size = 1 + near * 1.4
-
-        ctx.fillStyle = `rgba(${160 + near * 20}, ${107 + near * 40}, 240, ${alpha})`
-      } else {
-        ctx.fillStyle = `rgba(190, 185, 205, ${alpha})`
+        const proximity = (1 - Math.sqrt(distance) / RADIUS) * pointer.strength
+        const pull = proximity * proximity * 9
+        const length = Math.sqrt(distance) || 1
+        x += (dx / length) * pull
+        y += (dy / length) * pull
+        // Held back and drawn after the batch, because each one has its own colour.
+        near.push({ x, y, size: 1 + proximity * 1.4, near: proximity })
+        continue
       }
 
-      ctx.beginPath()
-      ctx.arc(x, y, size, 0, Math.PI * 2)
-      ctx.fill()
+      ctx.moveTo(x + 1, y)
+      ctx.arc(x, y, 1, 0, TAU)
     }
+  }
+  ctx.fill()
+
+  for (const dot of near) {
+    ctx.fillStyle = `rgba(${160 + dot.near * 20}, ${107 + dot.near * 40}, 240, ${0.05 + dot.near * 0.5})`
+    ctx.beginPath()
+    ctx.arc(dot.x, dot.y, dot.size, 0, TAU)
+    ctx.fill()
   }
 
   // A soft pool of light under the cursor, well below the dots in intensity.

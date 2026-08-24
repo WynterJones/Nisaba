@@ -22,17 +22,32 @@ function ViewportHost(): React.JSX.Element {
   useEffect(() => {
     const el = ref.current
     if (!el) return
+
+    let last = ''
+    let frame = 0
     const push = (): void => {
       const { x, y, width, height } = el.getBoundingClientRect()
+      // Every setBounds relays out the remote page, so an unfiltered ResizeObserver — one that
+      // fires on every frame of a panel drag, often with identical numbers — makes the page
+      // being browsed stutter. Coalesce to one call per frame, and skip no-op moves.
+      const key = `${Math.round(x)},${Math.round(y)},${Math.round(width)},${Math.round(height)}`
+      if (key === last) return
+      last = key
       void window.api.browser.setBounds({ x, y, width, height })
     }
+    const schedule = (): void => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(push)
+    }
+
     push()
-    const observer = new ResizeObserver(push)
+    const observer = new ResizeObserver(schedule)
     observer.observe(el)
-    window.addEventListener('resize', push)
+    window.addEventListener('resize', schedule)
     return () => {
+      cancelAnimationFrame(frame)
       observer.disconnect()
-      window.removeEventListener('resize', push)
+      window.removeEventListener('resize', schedule)
     }
   }, [])
 

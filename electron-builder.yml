@@ -11,6 +11,10 @@ asarUnpack:
   - "**/node_modules/node-pty/**"
 # Artifacts are uploaded to a release by hand after notarization, never by the packer.
 publish: null
+# electron-builder suffixes only the non-default arch, which produced "Nisaba-1.0.0.dmg" for
+# Intel and "Nisaba-1.0.0-arm64.dmg" for Apple Silicon -- the Intel one reads as the default
+# download and silently runs under Rosetta on an M-series Mac. Always name the arch.
+artifactName: ${productName}-${version}-${arch}.${ext}
 mac:
   target: dmg
   category: public.app-category.productivity

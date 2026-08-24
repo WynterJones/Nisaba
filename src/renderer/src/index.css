@@ -248,3 +248,21 @@
   --btn-face: var(--destructive);
   --btn-glow: color-mix(in srgb, var(--destructive) 55%, transparent);
 }
+
+/*
+  An image whose file was moved, renamed or deleted. main.tsx blanks the source so the platform
+  stops drawing its broken-image glyph; this gives it a quiet placeholder instead, with a hint
+  that the file — not the record — is what went missing.
+*/
+img[data-missing='true'] {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--secondary) 0 6px,
+      var(--muted) 6px 12px
+    );
+  border-radius: inherit;
+  object-fit: cover;
+  min-height: 1rem;
+  opacity: 0.5;
+}
