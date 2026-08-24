@@ -33,7 +33,7 @@ const INSTALL = `(() => {
   if (window.__nisabaAudit) { window.__nisabaAudit.resume(); return true }
 
   const NS = {}
-  const state = { pins: [], waiters: [], stopped: false, hover: null }
+  const state = { pins: [], waiters: [], stopped: false, hover: null, base: 0 }
 
   const layer = document.createElement('div')
   layer.id = '__nisaba_audit__'
@@ -235,7 +235,7 @@ const INSTALL = `(() => {
     const el = state.hover || document.elementFromPoint(e.clientX, e.clientY)
     if (!el || isOurs(el)) return
     const context = collect(el)
-    const pin = { id: 'p' + Date.now() + Math.round(Math.random() * 999), index: state.pins.length + 1, selector: context.selector }
+    const pin = { id: 'p' + Date.now() + Math.round(Math.random() * 999), index: state.base + state.pins.length + 1, selector: context.selector }
     state.pins.push(pin)
     marker(pin)
     place()
@@ -268,12 +268,19 @@ const INSTALL = `(() => {
     if (i === -1) return false
     state.pins[i].dot.remove(); state.pins[i].box.remove()
     state.pins.splice(i, 1)
-    state.pins.forEach((p, n) => { p.index = n + 1; p.dot.textContent = n + 1 })
+    state.pins.forEach((p, n) => { p.index = state.base + n + 1; p.dot.textContent = p.index })
     place()
     return true
   }
 
   NS.resume = () => { state.stopped = false; layer.style.display = 'block' }
+
+  /** Numbers this page's dots from where a resumed audit left off. */
+  NS.rebase = (n) => {
+    state.base = n
+    state.pins.forEach((p, i) => { p.index = n + i + 1; p.dot.textContent = p.index })
+    return true
+  }
 
   /** The pin screenshot must not contain Nisaba's own markers, so hide them for a frame. */
   NS.hide = () => new Promise((resolve) => {
@@ -306,9 +313,12 @@ export function registerAuditIpc(): void {
     return found
   }
 
-  ipcMain.handle('audit:start', async () => {
+  ipcMain.handle('audit:start', async (_e, base: number = 0) => {
     const target = view()
     await target.webContents.executeJavaScript(INSTALL, true)
+    await target.webContents
+      .executeJavaScript(`window.__nisabaAudit.rebase(${Math.max(0, Math.trunc(base) || 0)})`, true)
+      .catch(() => undefined)
     return pageMeta(target)
   })
 

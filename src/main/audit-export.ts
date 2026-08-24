@@ -261,6 +261,11 @@ export function registerAuditExportIpc(): void {
     }
   )
 
+  /** The same prompt the agent gets, for pasting into an agent Nisaba does not run. */
+  ipcMain.handle('audit:prompt', (_e, record: AuditRecord, planDir: string) =>
+    implementPrompt(planDir, record)
+  )
+
   ipcMain.handle(
     'audit:export',
     async (e, record: AuditRecord, suggestedRoot: string | null) => {

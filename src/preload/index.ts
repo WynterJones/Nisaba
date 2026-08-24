@@ -123,6 +123,11 @@ const api = {
     probe: (root: string): Promise<WorkspaceProbe> => invoke('workspaces:probe', root),
     create: (input: Omit<WorkspaceRecord, 'id' | 'createdAt'>): Promise<WorkspaceRecord> =>
       invoke('workspaces:create', input),
+    /** Re-probes the folder when `root` changes — it is the boundary jobs are held inside. */
+    update: (
+      id: string,
+      patch: Partial<Omit<WorkspaceRecord, 'id' | 'createdAt'>>
+    ): Promise<void> => invoke('workspaces:update', id, patch),
     reveal: (root: string): Promise<void> => invoke('workspaces:reveal', root)
   },
 
@@ -155,7 +160,9 @@ const api = {
   },
 
   audit: {
-    start: (): Promise<{ url: string; title: string; host: string }> => invoke('audit:start'),
+    /** `base` numbers the on-page pins from where a resumed audit left off. */
+    start: (base = 0): Promise<{ url: string; title: string; host: string }> =>
+      invoke('audit:start', base),
     /** Resolves with the next pin the user drops, or null when they finish. */
     next: (): Promise<{ id: string; index: number; context: PinContext; shot: string | null } | null> =>
       invoke('audit:next'),
@@ -168,6 +175,9 @@ const api = {
       suggestedRoot: string | null
     ): Promise<{ path: string; tasks: number; shots: number } | null> =>
       invoke('audit:export', record, suggestedRoot),
+    /** The agent prompt for an already-exported plan, pointed at `planDir`. */
+    prompt: (record: AuditRecord, planDir: string): Promise<string> =>
+      invoke('audit:prompt', record, planDir),
     /** Writes the plan into the workspace and starts an agent on it in a live terminal. */
     implement: (record: AuditRecord, binary?: string): Promise<TerminalSummary> =>
       invoke('audit:implement', record, binary)

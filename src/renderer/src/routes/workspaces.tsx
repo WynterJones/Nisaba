@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   FolderOpen,
+  PenLine,
   Plus,
   ShieldCheck,
   SquareLibrary,
@@ -25,22 +26,27 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { AgentInstallation, WorkspaceProbe } from '../../../preload'
+import type { AgentInstallation, WorkspaceProbe, WorkspaceRecord } from '../../../preload'
 
-function CreateDialog(): React.JSX.Element {
+/** One dialog for both: with `workspace` it edits that record, without it creates a new one. */
+function WorkspaceDialog({ workspace }: { workspace?: WorkspaceRecord }): React.JSX.Element {
   const refresh = useLibrary((s) => s.refresh)
   const setOverlay = useApp((s) => s.setOverlay)
   const [open, setOpen] = useState(false)
-  const [root, setRoot] = useState('')
-  const [name, setName] = useState('')
-  const [profile, setProfile] = useState<string>('react-shadcn')
-  const [agent, setAgent] = useState<'claude' | 'codex'>('claude')
+  const [root, setRoot] = useState(workspace?.root ?? '')
+  const [name, setName] = useState(workspace?.name ?? '')
+  const [profile, setProfile] = useState<string>(workspace?.profile ?? 'react-shadcn')
+  const [agent, setAgent] = useState<'claude' | 'codex'>(workspace?.agent ?? 'claude')
   const [probe, setProbe] = useState<WorkspaceProbe | null>(null)
   const [agents, setAgents] = useState<AgentInstallation[]>([])
+  const editing = !!workspace
 
   useEffect(() => {
-    if (open) void window.api.agents.detect().then(setAgents)
-  }, [open])
+    if (!open) return
+    void window.api.agents.detect().then(setAgents)
+    // Folders move and permissions change, so an existing root is re-checked every time.
+    if (workspace) void window.api.workspaces.probe(workspace.root).then(setProbe)
+  }, [open, workspace])
 
   const choose = async (): Promise<void> => {
     const picked = await window.api.workspaces.pick()
@@ -50,8 +56,15 @@ function CreateDialog(): React.JSX.Element {
     setProbe(await window.api.workspaces.probe(picked))
   }
 
-  const create = async (): Promise<void> => {
+  const submit = async (): Promise<void> => {
     try {
+      if (workspace) {
+        await window.api.workspaces.update(workspace.id, { name, root, profile, agent })
+        await refresh()
+        setOpen(false)
+        toast.success('Workspace updated', { description: root })
+        return
+      }
       await window.api.workspaces.create({ name, root, profile, agent })
       await refresh()
       setOpen(false)
@@ -75,17 +88,24 @@ function CreateDialog(): React.JSX.Element {
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" />
-          New workspace
-        </Button>
+        {editing ? (
+          <Button variant="ghost" size="icon-sm" title="Edit workspace">
+            <PenLine className="size-3.5" />
+          </Button>
+        ) : (
+          <Button size="sm">
+            <Plus className="size-4" />
+            New workspace
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>New workspace</DialogTitle>
+          <DialogTitle>{editing ? 'Edit workspace' : 'New workspace'}</DialogTitle>
           <DialogDescription>
             A workspace is a folder an agent is allowed to write into, plus the stack it should
             write in. Nothing a job does can escape this folder.
+            {editing && ' Past runs stay attached to this workspace when you move it.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -95,7 +115,7 @@ function CreateDialog(): React.JSX.Element {
             <div className="flex gap-2">
               <Input readOnly value={root} placeholder="No folder chosen" className="h-9 font-mono text-xs" />
               <Button variant="secondary" size="sm" className="shrink-0" onClick={choose}>
-                Choose…
+                {editing ? 'Change…' : 'Choose…'}
               </Button>
             </div>
             {probe && (
@@ -172,8 +192,8 @@ function CreateDialog(): React.JSX.Element {
         </div>
 
         <DialogFooter>
-          <Button onClick={create} disabled={!root || !name}>
-            Create workspace
+          <Button onClick={submit} disabled={!root || !name}>
+            {editing ? 'Save changes' : 'Create workspace'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -193,7 +213,7 @@ export default function Workspaces(): React.JSX.Element {
       nameOf={(w) => w.name}
       emptyTitle="No workspaces yet"
       emptyBlurb="Point Nisaba at a folder and it becomes the only place an agent job can write. Pick the stack it should generate in, and the CLI that will do the work."
-      actions={<CreateDialog />}
+      actions={<WorkspaceDialog />}
     >
       {(rows) => (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(21rem,1fr))] gap-4 p-5">
@@ -212,6 +232,7 @@ export default function Workspaces(): React.JSX.Element {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <WorkspaceDialog workspace={workspace} />
                     <Button
                       variant="ghost"
                       size="icon-sm"

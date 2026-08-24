@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   CheckCircle2,
+  ClipboardCopy,
   ExternalLink,
   FileCode2,
   FolderOpen,
+  MousePointerClick,
   PenLine,
   SquareTerminal,
   Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { implementAudit } from '@/actions'
+import { copyAuditPrompt, implementAudit } from '@/actions'
+import { useAudit } from '@/audit'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { useApp, useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
@@ -33,10 +36,12 @@ const PRIORITY_TINT: Record<string, string> = {
 
 function Detail({
   record,
-  onClose
+  onClose,
+  onContinue
 }: {
   record: AuditRecord
   onClose: () => void
+  onContinue: () => void
 }): React.JSX.Element {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -86,6 +91,10 @@ function Detail({
         </ScrollArea>
 
         <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onContinue}>
+            <MousePointerClick className="size-4" />
+            Add more pins
+          </Button>
           <Button
             variant="secondary"
             disabled={!record.workspaceRoot}
@@ -100,10 +109,20 @@ function Detail({
             Implement with agent
           </Button>
           {record.exportedTo && (
-            <Button variant="secondary" onClick={() => window.api.jobs.open(record.exportedTo!)}>
-              <FolderOpen className="size-4" />
-              Open plan folder
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                title="Copy an agent prompt pointing at the exported folder"
+                onClick={() => void copyAuditPrompt(record)}
+              >
+                <ClipboardCopy className="size-4" />
+                Copy prompt
+              </Button>
+              <Button variant="secondary" onClick={() => window.api.jobs.open(record.exportedTo!)}>
+                <FolderOpen className="size-4" />
+                Open plan folder
+              </Button>
+            </>
           )}
           <Button
             onClick={async () => {
@@ -111,7 +130,13 @@ function Detail({
               if (result) {
                 await window.api.library.patch('audits', record.id, { exportedTo: result.path })
                 await useLibrary.getState().refresh()
-                toast.success(`Exported ${result.tasks} tasks`, { description: result.path })
+                toast.success(`Exported ${result.tasks} tasks`, {
+                  description: result.path,
+                  action: {
+                    label: 'Copy prompt',
+                    onClick: () => void copyAuditPrompt({ ...record, exportedTo: result.path })
+                  }
+                })
               }
             }}
           >
@@ -129,6 +154,13 @@ export default function Audits(): React.JSX.Element {
   const newTab = useApp((s) => s.newTab)
   const navigate = useNavigate()
   const [open, setOpen] = useState<AuditRecord | null>(null)
+
+  /** Reopens a saved audit in the browser panel so more pins can be added to it. */
+  const resume = (record: AuditRecord): void => {
+    useAudit.getState().open(record)
+    newTab(record.url)
+    void navigate('/browse')
+  }
 
   return (
     <>
@@ -160,6 +192,14 @@ export default function Audits(): React.JSX.Element {
                       </p>
                     </button>
                     <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Add more pins to this audit"
+                        onClick={() => resume(record)}
+                      >
+                        <MousePointerClick className="size-3.5" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -220,7 +260,16 @@ export default function Audits(): React.JSX.Element {
         )}
       </LibraryFrame>
 
-      {open && <Detail record={open} onClose={() => setOpen(null)} />}
+      {open && (
+        <Detail
+          record={open}
+          onClose={() => setOpen(null)}
+          onContinue={() => {
+            setOpen(null)
+            resume(open)
+          }}
+        />
+      )}
     </>
   )
 }

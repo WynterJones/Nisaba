@@ -49,7 +49,16 @@ export function registerUpdaterIpc(): void {
   autoUpdater.on('update-downloaded', (info) =>
     set({ status: 'ready', version: info.version, percent: 100 })
   )
-  autoUpdater.on('error', (error) => set({ status: 'error', error: error.message }))
+  autoUpdater.on('error', (error) =>
+    set({
+      status: 'error',
+      // Builds packed before the publish block existed carry no app-update.yml, and the raw
+      // ENOENT reads like a crash rather than "this copy cannot update itself".
+      error: /app-update\.yml/.test(error.message)
+        ? 'This build has no update feed — download the latest release manually.'
+        : error.message
+    })
+  )
 
   ipcMain.handle('update:state', () => state)
 

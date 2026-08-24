@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { access, readdir } from 'fs/promises'
 import { constants } from 'fs'
 import { join, resolve, relative, isAbsolute } from 'path'
-import { addRecord, newId, readIndex, type WorkspaceRecord } from './library'
+import { addRecord, newId, patchRecord, readIndex, type WorkspaceRecord } from './library'
 
 export type WorkspaceProbe = {
   exists: boolean
@@ -53,6 +53,21 @@ export async function probeWorkspace(root: string): Promise<WorkspaceProbe> {
   return probe
 }
 
+/**
+ * A workspace root is a write boundary, so it is re-checked on every change — not only when
+ * the workspace is first created.
+ */
+async function assertUsableRoot(root: string, exceptId?: string): Promise<void> {
+  const probe = await probeWorkspace(root)
+  if (!probe.exists) throw new Error('That folder does not exist')
+  if (!probe.writable) throw new Error('Nisaba cannot write to that folder')
+
+  const index = await readIndex()
+  if (index.workspaces.some((w) => w.id !== exceptId && resolve(w.root) === resolve(root))) {
+    throw new Error('That folder is already a workspace')
+  }
+}
+
 export function registerWorkspaceIpc(): void {
   ipcMain.handle('workspaces:pick', async (e): Promise<string | null> => {
     const win = BrowserWindow.fromWebContents(e.sender)
@@ -69,16 +84,16 @@ export function registerWorkspaceIpc(): void {
   ipcMain.handle(
     'workspaces:create',
     async (_e, input: Omit<WorkspaceRecord, 'id' | 'createdAt'>): Promise<WorkspaceRecord> => {
-      const probe = await probeWorkspace(input.root)
-      if (!probe.exists) throw new Error('That folder does not exist')
-      if (!probe.writable) throw new Error('Nisaba cannot write to that folder')
-
-      const index = await readIndex()
-      if (index.workspaces.some((w) => resolve(w.root) === resolve(input.root))) {
-        throw new Error('That folder is already a workspace')
-      }
-
+      await assertUsableRoot(input.root)
       return addRecord('workspaces', { ...input, id: newId(), createdAt: Date.now() })
+    }
+  )
+
+  ipcMain.handle(
+    'workspaces:update',
+    async (_e, id: string, patch: Partial<Omit<WorkspaceRecord, 'id' | 'createdAt'>>) => {
+      if (patch.root) await assertUsableRoot(patch.root, id)
+      await patchRecord('workspaces', id, patch)
     }
   )
 

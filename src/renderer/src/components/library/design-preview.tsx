@@ -131,9 +131,9 @@ export function DesignPreview({
   levels: Levels
   onLevels: (levels: Levels) => void
 }): React.JSX.Element {
-  useGoogleFont(googleFontsHref(spec.fonts))
-
+  // applyLevels completes an older spec, so read fonts and `derived` off the result of it.
   const resolved = applyLevels(spec, levels)
+  useGoogleFont(googleFontsHref(resolved.fonts))
   const surface = resolved.colors.surface ?? '#ffffff'
   const onSurface = resolved.colors['on-surface'] ?? '#111111'
   const body = typeOf(resolved, 'body-md')
@@ -147,7 +147,7 @@ export function DesignPreview({
   const heading = typeOf(resolved, 'headline-md')
   const small = typeOf(resolved, 'body-sm')
 
-  const derived = new Set(spec.derived)
+  const derived = new Set(resolved.derived)
   const gap = parseFloat(resolved.spacing.md ?? resolved.spacing.unit ?? '16px') || 16
 
   return (
@@ -231,9 +231,9 @@ export function DesignPreview({
       </div>
 
       <p className="text-[10px] leading-relaxed text-muted-foreground">
-        Set in <span className="text-foreground">{spec.fonts.body.google}</span>
-        {spec.fonts.body.google !== spec.fonts.body.requested && (
-          <> — the closest Google font to the page&apos;s {spec.fonts.body.requested}</>
+        Set in <span className="text-foreground">{resolved.fonts.body.google}</span>
+        {resolved.fonts.body.google !== resolved.fonts.body.requested && (
+          <> — the closest Google font to the page&apos;s {resolved.fonts.body.requested}</>
         )}
         . Level 2 on every dial is the page exactly as measured.
         {derived.size > 0 && (

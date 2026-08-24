@@ -15,6 +15,8 @@ type AuditState = {
   savedId: string | null
 
   start: () => Promise<void>
+  /** Reopens a saved audit in the panel so more pins can be added to it. */
+  open: (record: AuditRecord) => void
   stop: () => Promise<void>
   update: (id: string, patch: Partial<AuditPin>) => void
   remove: (id: string) => Promise<void>
@@ -59,12 +61,20 @@ export const useAudit = create<AuditState>((set, get) => ({
 
   start: async () => {
     try {
-      const page = await window.api.audit.start()
-      const root = guessWorkspaceRoot(page.url)
+      // A draft only carries on if it belongs to the page in front of us — otherwise pins from
+      // two different pages would end up in one audit.
+      const app = useApp.getState()
+      const here = app.tabs.find((t) => t.id === app.activeTabId)?.url ?? ''
+      const prior = get().draft
+      const continuing = !!prior && prior.url === here
+
+      if (prior && !continuing && prior.pins.length > 0) await get().save()
+
+      const page = await window.api.audit.start(continuing ? prior!.pins.length : 0)
       set({
         active: true,
-        draft: get().draft ?? emptyDraft(page, root),
-        savedId: null
+        draft: continuing ? prior! : emptyDraft(page, guessWorkspaceRoot(page.url)),
+        savedId: continuing ? get().savedId : null
       })
       useApp.getState().openInspector('inspect')
 
@@ -76,7 +86,7 @@ export const useAudit = create<AuditState>((set, get) => ({
 
           const record: AuditPin = {
             id: pin.id,
-            index: pin.index,
+            index: (get().draft?.pins.length ?? 0) + 1,
             note: '',
             category: 'other',
             priority: 'normal',
@@ -124,6 +134,12 @@ export const useAudit = create<AuditState>((set, get) => ({
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
     }
+  },
+
+  open: (record) => {
+    const { id, createdAt, ...draft } = record
+    void createdAt
+    set({ active: false, focused: null, locating: [], draft, savedId: id })
   },
 
   stop: async () => {

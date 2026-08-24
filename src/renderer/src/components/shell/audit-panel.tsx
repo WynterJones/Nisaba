@@ -13,7 +13,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { implementAudit } from '@/actions'
+import { copyAuditPrompt, implementAudit } from '@/actions'
 import { CATEGORIES, useAudit } from '@/audit'
 import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
@@ -148,7 +148,7 @@ function PinCard({ pin }: { pin: AuditPin }): React.JSX.Element {
 
 /** Replaces the inspector while a review is running — the notes have to live outside the page. */
 export function AuditPanel(): React.JSX.Element {
-  const { active, draft, stop, start, save, reset } = useAudit()
+  const { active, draft, savedId, stop, start, save, reset } = useAudit()
   const workspaces = useLibrary((s) => s.workspaces)
   const setOverlay = useApp((s) => s.setOverlay)
   const navigate = useNavigate()
@@ -173,7 +173,13 @@ export function AuditPanel(): React.JSX.Element {
       if (result) {
         await window.api.library.patch('audits', record.id, { exportedTo: result.path })
         await useLibrary.getState().refresh()
-        toast.success(`Exported ${result.tasks} tasks`, { description: result.path })
+        toast.success(`Exported ${result.tasks} tasks`, {
+          description: result.path,
+          action: {
+            label: 'Copy prompt',
+            onClick: () => void copyAuditPrompt({ ...record, exportedTo: result.path })
+          }
+        })
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
@@ -315,7 +321,7 @@ export function AuditPanel(): React.JSX.Element {
             }}
             className="text-muted-foreground"
           >
-            Discard review
+            {savedId ? 'Close audit' : 'Discard review'}
           </Button>
         )}
       </div>

@@ -135,6 +135,27 @@ export async function implementAudit(
   }
 }
 
+/**
+ * Copies the agent prompt for an exported audit — same wording the built-in agent gets, but
+ * pointed at the folder on disk, so it can be pasted into any agent.
+ */
+export async function copyAuditPrompt(
+  record: import('../../preload').AuditRecord
+): Promise<void> {
+  if (!record.exportedTo) {
+    toast.error('Export the plan first — the prompt has to point at a folder')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(
+      await window.api.audit.prompt(record, record.exportedTo)
+    )
+    toast.success('Prompt copied', { description: record.exportedTo })
+  } catch (error) {
+    fail(error)
+  }
+}
+
 /** Profiles the whole page into an editable design pack. */
 export async function profileDesign(): Promise<void> {
   const id = toast.loading('Reading the page design…')

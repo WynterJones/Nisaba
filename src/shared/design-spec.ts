@@ -268,7 +268,42 @@ const PILL_AT_3 = new Set(['button-primary', 'button-secondary', 'button-tertiar
  * Applies the three level dials to a measured spec. Pure — the stored spec is never mutated,
  * so switching back to level 2 always restores exactly what was on the page.
  */
-export function applyLevels(spec: DesignSpec, levels: Levels): DesignSpec {
+/**
+ * Makes a stored spec whole. Profiles captured before fonts, `derived` and the full component
+ * set landed have those keys missing, and every consumer reads them straight — so they are
+ * filled in from what *was* measured, the same way a fresh profile fills its own gaps.
+ */
+export function upgradeSpec(spec: DesignSpec): DesignSpec {
+  const complete =
+    spec.fonts && spec.derived && COMPONENT_ORDER.every((name) => spec.components?.[name])
+  if (complete) return spec
+
+  const components = { ...(spec.components ?? {}) }
+  const bodyStack = spec.typography?.['body-md']?.fontFamily || 'system-ui, sans-serif'
+  const headingStack = spec.typography?.['headline-lg']?.fontFamily || bodyStack
+  const derived = completeComponents(components, {
+    colors: spec.colors ?? {},
+    rounded: spec.rounded ?? {},
+    spacing: spec.spacing ?? {},
+    height: spec.components?.['button-primary']?.height ?? '40px'
+  })
+
+  return {
+    ...spec,
+    components,
+    typography: spec.typography ?? {},
+    colors: spec.colors ?? {},
+    rounded: spec.rounded ?? {},
+    spacing: spec.spacing ?? {},
+    fonts: spec.fonts ?? { body: resolveFont(bodyStack), heading: resolveFont(headingStack) },
+    derived: [...(spec.derived ?? []), ...derived],
+    notes: spec.notes ?? { breakpoints: [], shadows: [], variables: {} }
+  }
+}
+
+/** Every consumer of a spec goes through here, so this is where an old one is made whole. */
+export function applyLevels(input: DesignSpec, levels: Levels): DesignSpec {
+  const spec = upgradeSpec(input)
   const shape = SHAPE_FACTOR[levels.shape]
   const density = DENSITY_FACTOR[levels.density]
   const strongest = spec.notes.shadows[0] ?? '0 8px 24px rgba(0,0,0,0.18)'
@@ -457,9 +492,9 @@ the site's own naming before treating them as canonical.
 
 ## Typography
 
-The page sets its body in **${spec.fonts.body.requested}** and its headings in **${spec.fonts.heading.requested}**.
+The page sets its body in **${resolved.fonts.body.requested}** and its headings in **${resolved.fonts.heading.requested}**.
 Those are not always licensable, so the tokens above name the closest Google Font —
-**${spec.fonts.body.google}** for body and **${spec.fonts.heading.google}** for headings — with the original
+**${resolved.fonts.body.google}** for body and **${resolved.fonts.heading.google}** for headings — with the original
 kept in the stack ahead of the generic fallback, so an implementation renders correctly either way.
 
 | Token | Size | Weight | Line height |
@@ -497,8 +532,8 @@ ${Object.entries(resolved.rounded)
 ${componentProse || '_No components could be sampled on this page._'}
 
 ${
-  spec.derived.length
-    ? `The page had no ${spec.derived.map((n) => `\`${n}\``).join(', ')}, so ${spec.derived.length === 1 ? 'it was' : 'they were'} derived from what was measured — the primary fill, the outline colour, the radius scale and the spacing unit. Treat ${spec.derived.length === 1 ? 'it' : 'them'} as a starting point that fits the rest of the system, not as an observation.`
+  resolved.derived.length
+    ? `The page had no ${resolved.derived.map((n) => `\`${n}\``).join(', ')}, so ${resolved.derived.length === 1 ? 'it was' : 'they were'} derived from what was measured — the primary fill, the outline colour, the radius scale and the spacing unit. Treat ${resolved.derived.length === 1 ? 'it' : 'them'} as a starting point that fits the rest of the system, not as an observation.`
     : 'Every component above was measured directly from the page.'
 }
 

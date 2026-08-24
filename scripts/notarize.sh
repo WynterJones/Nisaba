@@ -62,6 +62,10 @@ for dmg in "${dmgs[@]}"; do
   xcrun stapler staple "$dmg"
 done
 
+# Stapling rewrote each DMG, so the hashes in the update feed no longer match what is being
+# published. Restamp them before the release goes out.
+python3 "$(dirname "$0")/restamp-feed.py"
+
 # Verified in a second pass so one bad artifact cannot stop the others from being submitted.
 echo
 echo "=== Gatekeeper assessment ==="

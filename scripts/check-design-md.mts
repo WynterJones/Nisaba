@@ -9,6 +9,7 @@ import {
   googleFontsHref,
   resolveFont,
   toDesignMd,
+  upgradeSpec,
   DEFAULT_LEVELS,
   type DesignSpec
 } from '../src/shared/design-spec.ts'
@@ -142,3 +143,34 @@ assert.ok(md.includes('Nunito Sans') === false, 'fixture sanity')
 assert.ok(md.includes('closest Google Font'), 'typography section must explain the substitution')
 
 console.log('design.md ok:', headings.length, 'sections,', md.length, 'bytes')
+
+// Profiles captured before fonts, `derived` and the full component set landed are missing
+// those keys. Opening one used to throw on `spec.fonts.body`, which took the app down with it.
+const legacy = {
+  name: 'legacy.com design profile',
+  description: 'A profile from before fonts were resolved.',
+  colors: { surface: '#ffffff', 'on-surface': '#111111', primary: '#0b5' },
+  typography: {
+    'body-md': { fontFamily: 'Circular, sans-serif', fontSize: '16px', fontWeight: '400', lineHeight: '24px' }
+  },
+  rounded: { md: '6px' },
+  spacing: { unit: '8px' },
+  components: { 'button-primary': { backgroundColor: '#0b5', rounded: '6px', height: '40px' } },
+  notes: { breakpoints: [], shadows: [], variables: {} }
+} as unknown as DesignSpec
+
+const fixed = upgradeSpec(legacy)
+assert.ok(fixed.fonts.body.google, 'a legacy spec must come back with a resolved body font')
+assert.ok(
+  COMPONENT_ORDER.every((name) => fixed.components[name]),
+  'a legacy spec must come back with every component'
+)
+assert.ok(fixed.derived.includes('input-field'), 'components it never had must be marked derived')
+assert.ok(!fixed.derived.includes('button-primary'), 'components it did have must not be')
+assert.ok(googleFontsHref(fixed.fonts).startsWith('https://'), 'the font href must be loadable')
+
+const legacyMd = toDesignMd(legacy, { url: 'https://legacy.com', host: 'legacy.com', capturedAt: Date.now() }, DEFAULT_LEVELS)
+assert.ok(legacyMd.includes('Nunito Sans'), 'Circular should stand in as Nunito Sans')
+assert.equal(upgradeSpec(fixed), fixed, 'a complete spec is returned untouched')
+
+console.log('legacy spec ok:', legacyMd.length, 'bytes,', fixed.derived.length, 'derived')
