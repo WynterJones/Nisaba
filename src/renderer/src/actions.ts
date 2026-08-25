@@ -127,10 +127,11 @@ export async function saveSelection(): Promise<import('../../preload').SectionRe
  * so the run can be watched and answered rather than fired off blind.
  */
 export async function implementAudit(
-  record: import('../../preload').AuditRecord
+  record: import('../../preload').AuditRecord,
+  agent?: import('../../preload').AgentId
 ): Promise<void> {
   try {
-    const session = await window.api.audit.implement(record)
+    const session = await window.api.audit.implement(record, agent)
     useTerminals.getState().show(session.id)
     toast.success('Agent started on this audit', { description: session.cwd })
   } catch (error) {
@@ -139,21 +140,19 @@ export async function implementAudit(
 }
 
 /**
- * Copies the agent prompt for an exported audit — same wording the built-in agent gets, but
- * pointed at the folder on disk, so it can be pasted into any agent.
+ * Copies the whole plan as one prompt — tasks inlined, so it works pasted into an agent that
+ * cannot read the exported folder.
  */
 export async function copyAuditPrompt(
   record: import('../../preload').AuditRecord
 ): Promise<void> {
-  if (!record.exportedTo) {
-    toast.error('Export the plan first — the prompt has to point at a folder')
-    return
-  }
   try {
     await navigator.clipboard.writeText(
-      await window.api.audit.prompt(record, record.exportedTo)
+      await window.api.audit.prompt(record, record.exportedTo ?? null)
     )
-    toast.success('Prompt copied', { description: record.exportedTo })
+    toast.success('Prompt copied', {
+      description: `${record.pins.length} task(s) — paste it into any agent`
+    })
   } catch (error) {
     fail(error)
   }
@@ -188,11 +187,27 @@ export async function saveElements(
   try {
     const saved = await window.api.elements.save(candidates)
     await useLibrary.getState().refresh()
-    toast.success(`Saved ${saved.length} element${saved.length === 1 ? '' : 's'}`, { id })
+    const missed = candidates.length - saved.length
+    toast.success(`Saved ${saved.length} element${saved.length === 1 ? '' : 's'}`, {
+      id,
+      description: missed > 0 ? `${missed} could not be captured and were skipped` : undefined
+    })
   } catch (error) {
     toast.dismiss(id)
     fail(error)
   }
+}
+
+/**
+ * Every link in Nisaba's own UI opens in Nisaba. The address bar keeps a deliberate
+ * "open in your default browser" escape hatch; nothing else should leave the app.
+ */
+export function openInApp(url: string): void {
+  // A dialog may have left a frozen still over the viewport; clearing the overlay drops it.
+  useApp.getState().setOverlay(false)
+  useApp.getState().newTab(url)
+  // HashRouter reads the hash directly, so this works outside a component.
+  window.location.hash = '#/browse'
 }
 
 export function classifyResource(url: string): import('../../preload').ResourceRecord['type'] {

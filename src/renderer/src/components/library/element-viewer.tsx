@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CodeView } from '@/components/ui/code-view'
 import type { ElementRecord } from '../../../../preload'
+import { openInApp } from '@/actions'
 
 /**
  * Turns the captured computed styles back into a rule you can paste. The class is named after
@@ -209,8 +210,8 @@ export function ElementViewer({
             <Button
               variant="ghost"
               size="icon-sm"
-              title="Open in your default browser"
-              onClick={() => window.api.browser.openExternal(record.url)}
+              title="Open in a new tab"
+              onClick={() => openInApp(record.url)}
             >
               <ExternalLink className="size-3.5" />
             </Button>

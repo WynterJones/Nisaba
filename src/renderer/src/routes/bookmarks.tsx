@@ -15,6 +15,7 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { openInApp } from '@/actions'
 
 function BulkAddDialog(): React.JSX.Element {
   const addUrls = useBookmarks((s) => s.addUrls)
@@ -157,8 +158,8 @@ export default function Bookmarks(): React.JSX.Element {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => window.api.browser.openExternal(bookmark.url)}
-                    aria-label="Open in default browser"
+                    onClick={() => openInApp(bookmark.url)}
+                    aria-label="Open in a new tab"
                   >
                     <ExternalLink className="size-3.5" />
                   </Button>

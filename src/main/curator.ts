@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { watch, type FSWatcher } from 'fs'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { detectAgents, type AgentInstallation } from './agents'
+import { AGENTS, detectAgents, type AgentId, type AgentInstallation } from './agents'
 import { addRecord, libraryRoot, readIndex } from './library'
 import { TYPES, newResources } from '../shared/resources'
 import { openTerminal, terminalForJob, type TerminalSummary } from './terminals'
@@ -45,8 +45,11 @@ function invoke(agent: AgentInstallation): { file: string; args: string[]; displ
   const prompt =
     'Read BRIEF.md in this folder and follow it. Start by reading resources.json, then ask ' +
     'me what I am building before you add anything.'
-  const args = agent.id === 'claude' ? ['--permission-mode', 'acceptEdits', prompt] : [prompt]
-  return { file: agent.path!, args, display: `${agent.id} "<resource brief>"` }
+  return {
+    file: agent.path!,
+    args: AGENTS[agent.id].open(prompt),
+    display: `${agent.id} "<resource brief>"`
+  }
 }
 
 /** Whatever is in the file and not yet in the library, by URL. */
@@ -64,17 +67,17 @@ async function importNew(file: string): Promise<number> {
 const JOB = 'curate-resources'
 
 export function registerCuratorIpc(): void {
-  ipcMain.handle('resources:curate', async (): Promise<TerminalSummary> => {
+  ipcMain.handle('resources:curate', async (_e, pick?: AgentId): Promise<TerminalSummary> => {
     // Starting a second session would overwrite the file the first one is still appending to.
     const live = terminalForJob(JOB)
     if (live && live.exitCode === null) return live
 
     const index = await readIndex()
-    const want = index.workspaces[0]?.agent
+    const want = pick ?? index.workspaces[0]?.agent
     const installed = (await detectAgents()).filter((a) => a.path)
     const agent = installed.find((a) => a.id === want) ?? installed[0]
     if (!agent) {
-      throw new Error('No agent CLI found — install Claude Code or Codex to build with AI')
+      throw new Error('No agent CLI found — install Claude Code, Codex, Grok or OpenCode to build with AI')
     }
 
     const dir = join(libraryRoot(), 'resources', 'curate')

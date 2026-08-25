@@ -17,6 +17,7 @@ function ViewportHost(): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const hasTab = useApp((s) => s.activeTabId !== null)
   const width = useApp((s) => s.viewportWidth)
+  const shot = useApp((s) => s.overlayShot)
 
   useEffect(() => {
     const el = ref.current
@@ -55,7 +56,8 @@ function ViewportHost(): React.JSX.Element {
     useApp.getState().setViewportMounted(true)
     return () => {
       useApp.getState().setViewportMounted(false)
-      void window.api.browser.hideAll()
+      // Leaving the route: a library page is about to cover this, so skip the still.
+      void window.api.browser.hideAll(false)
     }
   }, [])
   useEffect(() => {
@@ -71,10 +73,23 @@ function ViewportHost(): React.JSX.Element {
         ref={ref}
         style={width ? { width, maxWidth: '100%' } : undefined}
         className={cn(
-          'min-h-0 min-w-0 flex-1 bg-background',
+          'relative min-h-0 min-w-0 flex-1 overflow-hidden bg-background',
           width && 'flex-none border-x border-border'
         )}
-      />
+      >
+        {/* The native view is hidden while UI covers it; this still keeps the page in sight. */}
+        {shot && (
+          <div className="absolute inset-0 animate-in duration-200 fade-in-0">
+            <img
+              src={shot}
+              alt=""
+              // Scaled up because a blur otherwise feathers the edges into the background.
+              className="size-full scale-105 object-cover object-top blur-[10px] saturate-[0.9]"
+            />
+            <div className="absolute inset-0 bg-background/40" />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

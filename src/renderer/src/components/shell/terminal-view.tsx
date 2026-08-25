@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
+import { openInApp } from '@/actions'
 
 /** Matches the app palette so a terminal does not read as a foreign window. */
 const THEME = {
@@ -61,7 +62,7 @@ export function TerminalView({
     })
     const fitAddon = new FitAddon()
     terminal.loadAddon(fitAddon)
-    terminal.loadAddon(new WebLinksAddon((_e, uri) => void window.api.browser.openExternal(uri)))
+    terminal.loadAddon(new WebLinksAddon((_e, uri) => void openInApp(uri)))
     terminal.open(el)
     term.current = terminal
     fit.current = fitAddon

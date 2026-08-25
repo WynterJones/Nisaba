@@ -20,6 +20,8 @@ let activeId: string | null = null
 let hidden = false
 /** Overrides `hidden` while a capture is in flight — the page must be composited to be shot. */
 let forceVisible = false
+/** Bumped whenever the page is asked back on screen, so a slow hide can tell it lost the race. */
+let shownAt = 0
 let lastBounds: Bounds = { x: 0, y: 0, width: 0, height: 0 }
 let mainWindow: BrowserWindow | null = null
 
@@ -214,6 +216,7 @@ export function registerBrowserIpc(win: BrowserWindow): void {
     if (activate) {
       activeId = id
       hidden = false
+      shownAt++
     }
     layout(win)
     if (url && view.webContents.getURL() !== url) void view.webContents.loadURL(url)
@@ -222,6 +225,7 @@ export function registerBrowserIpc(win: BrowserWindow): void {
   handle('browser:activate', (id: string) => {
     activeId = id
     hidden = false
+    shownAt++
     layout(win)
   })
 
@@ -245,10 +249,28 @@ export function registerBrowserIpc(win: BrowserWindow): void {
     layout(win)
   })
 
-  /** Hide every remote view — used when the app shows a library route instead of the browser. */
-  handle('browser:hide-all', () => {
+  /**
+   * Hide every remote view — used when the app shows a library route instead of the browser,
+   * or when UI has to paint over the page. Returns a small still of what was on screen so the
+   * renderer can blur that behind the UI instead of leaving a black hole.
+   */
+  handle('browser:hide-all', async (snapshot = true): Promise<string | null> => {
+    const view = active()
+    let shot: string | null = null
+    // A view that is already hidden composites to nothing — keep whatever still is up.
+    if (snapshot && view && !hidden) {
+      // The capture takes a frame, and a menu opened and closed inside it would otherwise be
+      // re-hidden by this stale call. Only hide if nothing asked for the page back meanwhile.
+      const era = shownAt
+      shot = await view.webContents
+        .capturePage()
+        .then((img) => (img.isEmpty() ? null : img.resize({ width: 720 }).toDataURL()))
+        .catch(() => null)
+      if (era !== shownAt) return shot
+    }
     hidden = true
     layout(win)
+    return shot
   })
 
   handle('browser:navigate', (url: string) => active()?.webContents.loadURL(url))

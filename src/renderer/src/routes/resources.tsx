@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, Library, ListPlus, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { classifyResource } from '@/actions'
+import { classifyResource, openInApp } from '@/actions'
+import { AgentMenu } from '@/components/shell/agent-menu'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { parseUrlList, useLibrary } from '@/store'
 import { useTerminals } from '@/terminals'
@@ -17,7 +18,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
-import type { ResourceRecord } from '../../../preload'
+import type { AgentId, ResourceRecord } from '../../../preload'
 
 const TYPE_LABEL: Record<ResourceRecord['type'], string> = {
   icons: 'Icons',
@@ -117,10 +118,10 @@ function BuildWithAI(): React.JSX.Element {
     [refresh]
   )
 
-  const start = async (): Promise<void> => {
+  const start = async (agent?: AgentId): Promise<void> => {
     setStarting(true)
     try {
-      const terminal = await window.api.resources.curate()
+      const terminal = await window.api.resources.curate(agent)
       show(terminal.id)
       toast.info('Your agent is reading the list', {
         description: 'Tell it what you are building in the terminal dock.'
@@ -133,10 +134,10 @@ function BuildWithAI(): React.JSX.Element {
   }
 
   return (
-    <Button size="sm" variant="secondary" disabled={starting} onClick={() => void start()}>
+    <AgentMenu size="sm" disabled={starting} onPick={(agent) => void start(agent.id)}>
       <Sparkles className="size-4" />
       Build with AI
-    </Button>
+    </AgentMenu>
   )
 }
 
@@ -203,7 +204,7 @@ export default function Resources(): React.JSX.Element {
                 {record.name.charAt(0)}
               </span>
               <button
-                onClick={() => window.api.browser.openExternal(record.url)}
+                onClick={() => openInApp(record.url)}
                 className="min-w-0 flex-1 text-left"
               >
                 <span className="block truncate text-sm font-medium">{record.name}</span>
@@ -220,7 +221,7 @@ export default function Resources(): React.JSX.Element {
                   variant="ghost"
                   size="icon-sm"
                   title="Open"
-                  onClick={() => window.api.browser.openExternal(record.url)}
+                  onClick={() => openInApp(record.url)}
                 >
                   <ExternalLink className="size-3.5" />
                 </Button>

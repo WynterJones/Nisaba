@@ -1,6 +1,6 @@
 {
   "name": "nisaba",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A desktop browser that turns design research into a reusable library",
   "main": "./out/main/index.js",
   "author": "WynterJones",
@@ -11,6 +11,7 @@
     "build": "tsc --noEmit && electron-vite build",
     "start": "electron-vite preview",
     "check:pty": "ELECTRON_RUN_AS_NODE=1 electron scripts/check-pty.cjs",
+    "check:agents": "node --experimental-strip-types scripts/check-agents.mts",
     "check:design": "node --experimental-strip-types scripts/check-design-md.mts",
     "check:extract": "node --experimental-strip-types scripts/check-extract.mts",
     "check:stream": "node --experimental-strip-types scripts/check-stream.mts",

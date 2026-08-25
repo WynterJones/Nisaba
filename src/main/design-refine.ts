@@ -110,7 +110,7 @@ async function chooseAgent(preferred?: AgentInstallation['id']): Promise<AgentIn
   const installed = (await detectAgents()).filter((a) => a.path)
   const chosen = installed.find((a) => a.id === want) ?? installed[0]
   if (!chosen) {
-    throw new Error('No agent CLI found — install Claude Code or Codex to refine a profile')
+    throw new Error('No agent CLI found — install Claude Code, Codex, Grok or OpenCode to refine a profile')
   }
   return chosen
 }

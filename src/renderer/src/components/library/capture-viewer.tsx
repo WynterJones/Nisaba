@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { CaptureRecord } from '../../../../preload'
+import { openInApp } from '@/actions'
 
 const KIND_LABEL: Record<CaptureRecord['kind'], string> = {
   viewport: 'Viewport',
@@ -239,7 +240,7 @@ export function CaptureViewer({
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => window.api.browser.openExternal(capture.url)}
+              onClick={() => openInApp(capture.url)}
               title={capture.url}
             >
               <ExternalLink className="size-3.5" />

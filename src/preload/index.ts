@@ -17,7 +17,7 @@ import type {
   WorkspaceRecord
 } from '../main/library'
 import type { SectionDraft } from '../main/extract'
-import type { AgentInstallation } from '../main/agents'
+import type { AgentId, AgentInstallation } from '../main/agents'
 import type { ElementCandidate } from '../main/elements'
 import type { WorkspaceProbe } from '../main/workspaces'
 import type { PinContext } from '../main/audit'
@@ -43,6 +43,7 @@ export type {
 export type { PinContext, SourceMatch }
 
 export type {
+  AgentId,
   AgentInstallation,
   Annotation,
   CaptureRecord,
@@ -121,7 +122,7 @@ const api = {
      * Opens the user's agent in a terminal with the resource list in front of it. It asks what
      * they are building, finds links, and appends them — Nisaba imports as the file changes.
      */
-    curate: (): Promise<TerminalSummary> => invoke('resources:curate'),
+    curate: (agent?: AgentId): Promise<TerminalSummary> => invoke('resources:curate', agent),
     /** Fires each time the agent's writes land in the library. */
     onAdded: (cb: (added: number) => void): (() => void) => subscribe('resources:added', cb)
   },
@@ -137,7 +138,7 @@ const api = {
      */
     refine: (
       record: DesignSystemRecord,
-      agent?: 'claude' | 'codex'
+      agent?: AgentId
     ): Promise<RefineState & { terminal: TerminalSummary }> =>
       invoke('design:refine', record, agent),
     onRefined: (cb: (state: RefineState) => void): (() => void) =>
@@ -180,6 +181,8 @@ const api = {
       kind: 'component' | 'template'
       binary: string
       name: string
+      /** Overrides the workspace's agent for this one run. */
+      agent?: AgentId
     }): Promise<JobRecord> => invoke('jobs:run', input),
     cancel: (id: string): Promise<void> => invoke('jobs:cancel', id),
     open: (dir: string, file?: string): Promise<void> => invoke('jobs:open', dir, file),
@@ -207,12 +210,12 @@ const api = {
       suggestedRoot: string | null
     ): Promise<{ path: string; tasks: number; shots: number } | null> =>
       invoke('audit:export', record, suggestedRoot),
-    /** The agent prompt for an already-exported plan, pointed at `planDir`. */
-    prompt: (record: AuditRecord, planDir: string): Promise<string> =>
-      invoke('audit:prompt', record, planDir),
+    /** The whole plan as one pasteable prompt; `planDir` just adds where it lives on disk. */
+    prompt: (record: AuditRecord, planDir?: string | null): Promise<string> =>
+      invoke('audit:prompt', record, planDir ?? null),
     /** Writes the plan into the workspace and starts an agent on it in a live terminal. */
-    implement: (record: AuditRecord, binary?: string): Promise<TerminalSummary> =>
-      invoke('audit:implement', record, binary)
+    implement: (record: AuditRecord, agent?: AgentId): Promise<TerminalSummary> =>
+      invoke('audit:implement', record, agent)
   },
 
   terminal: {
@@ -302,7 +305,11 @@ const api = {
     activate: (id: string): Promise<void> => invoke('browser:activate', id),
     close: (id: string): Promise<void> => invoke('browser:close', id),
     setBounds: (bounds: Bounds): Promise<void> => invoke('browser:set-bounds', bounds),
-    hideAll: (): Promise<void> => invoke('browser:hide-all'),
+    /**
+     * Hides the native views and hands back a still of the page, for a blurred backdrop.
+     * Pass false where nothing will be painted over the page — the capture costs a frame.
+     */
+    hideAll: (snapshot = true): Promise<string | null> => invoke('browser:hide-all', snapshot),
     navigate: (url: string): Promise<void> => invoke('browser:navigate', url),
     back: (): Promise<void> => invoke('browser:back'),
     forward: (): Promise<void> => invoke('browser:forward'),

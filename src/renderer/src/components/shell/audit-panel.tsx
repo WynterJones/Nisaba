@@ -17,10 +17,11 @@ import { copyAuditPrompt, implementAudit } from '@/actions'
 import { CATEGORIES, useAudit } from '@/audit'
 import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
+import { AgentMenu } from '@/components/shell/agent-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import type { AuditPin } from '../../../../preload'
+import type { AgentId, AuditPin } from '../../../../preload'
 
 const PRIORITIES: { id: AuditPin['priority']; label: string; tint: string }[] = [
   { id: 'high', label: 'High', tint: 'bg-rose-500/15 text-rose-300 ring-rose-500/40' },
@@ -189,14 +190,14 @@ export function AuditPanel(): React.JSX.Element {
   }
 
   /** Saving first is what gives the plan its shots and source matches on disk. */
-  const handOff = async (): Promise<void> => {
+  const handOff = async (agent?: AgentId): Promise<void> => {
     await stop()
     const record = await save()
     if (!record) {
       toast.error('Pin something first')
       return
     }
-    await implementAudit(record)
+    await implementAudit(record, agent)
     await useLibrary.getState().refresh()
   }
 
@@ -299,18 +300,19 @@ export function AuditPanel(): React.JSX.Element {
             Export plan
           </Button>
         </div>
-        <Button
+        <AgentMenu
+          variant="default"
           disabled={pins.length === 0 || !draft?.workspaceRoot}
           title={
             draft?.workspaceRoot
-              ? 'Write the plan into the workspace and start the agent on it in a terminal'
+              ? 'Write the plan into the workspace and start an agent on it in a terminal'
               : 'Pick a workspace first — the agent needs somewhere to work'
           }
-          onClick={() => void handOff()}
+          onPick={(agent) => void handOff(agent.id)}
         >
           <SquareTerminal className="size-4" />
           Implement with agent
-        </Button>
+        </AgentMenu>
         {pins.length > 0 && (
           <Button
             variant="ghost"

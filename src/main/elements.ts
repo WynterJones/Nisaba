@@ -198,46 +198,62 @@ export function registerElementIpc(): void {
       if (!view) throw new Error('Open a page before saving elements')
       const page = pageMeta(view)
       const saved: ElementRecord[] = []
+      const failures: string[] = []
 
       for (const candidate of candidates) {
-        const png = await captureRect(candidate.rect)
-        if (!png) continue
-        const id = newId()
-
-        // Screenshot each declared interaction state as its own frame.
-        const states: ElementRecord['states'] = []
-        for (const state of candidate.states.filter((s) => s !== 'disabled')) {
-          const applied = await forceState(view, candidate.selector, state)
-          if (!applied) continue
-          const shot = await captureRect(candidate.rect).catch(() => null)
-          await clearState(view, candidate.selector)
-          if (shot) {
-            states.push({
-              state,
-              file: await writeImage('elements', `${id}-${state}`, shot),
-              styles: {}
-            })
+        try {
+          // One uncapturable candidate — a control with no box, a node the page has since
+          // replaced — used to reject the whole call, so a batch of good elements saved nothing.
+          if (candidate.rect.width < 1 || candidate.rect.height < 1) {
+            throw new Error('it has no size on the page')
           }
-        }
+          const png = await captureRect(candidate.rect)
+          if (!png) throw new Error('the page is no longer open')
+          const id = newId()
 
-        saved.push(
-          await addRecord('elements', {
-            id,
-            createdAt: Date.now(),
-            category: candidate.category,
-            label: candidate.label,
-            host: page.host,
-            url: page.url,
-            file: await writeImage('elements', id, png),
-            phash: await hashImage(png),
-            rect: candidate.rect,
-            states,
-            styles: candidate.styles,
-            text: candidate.text
-          })
-        )
+          // Screenshot each declared interaction state as its own frame.
+          const states: ElementRecord['states'] = []
+          for (const state of candidate.states.filter((s) => s !== 'disabled')) {
+            const applied = await forceState(view, candidate.selector, state)
+            if (!applied) continue
+            const shot = await captureRect(candidate.rect).catch(() => null)
+            await clearState(view, candidate.selector)
+            if (shot) {
+              states.push({
+                state,
+                file: await writeImage('elements', `${id}-${state}`, shot),
+                styles: {}
+              })
+            }
+          }
+
+          saved.push(
+            await addRecord('elements', {
+              id,
+              createdAt: Date.now(),
+              category: candidate.category,
+              label: candidate.label,
+              host: page.host,
+              url: page.url,
+              file: await writeImage('elements', id, png),
+              phash: await hashImage(png),
+              rect: candidate.rect,
+              states,
+              styles: candidate.styles,
+              text: candidate.text
+            })
+          )
+        } catch (error) {
+          failures.push(
+            `${candidate.label} — ${error instanceof Error ? error.message : String(error)}`
+          )
+        }
       }
 
+      // Nothing saved is a failure, not a quiet success — say which one broke and why.
+      if (saved.length === 0 && failures.length > 0) {
+        throw new Error(`Could not capture any of them: ${failures[0]}`)
+      }
       return saved
     }
   )

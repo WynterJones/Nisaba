@@ -13,8 +13,10 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { saveSelection, startExtract } from '@/actions'
+import { openInApp, saveSelection, startExtract } from '@/actions'
 import { useApp, useLibrary } from '@/store'
+import { useAgents } from '@/agents'
+import { AgentMenu } from '@/components/shell/agent-menu'
 import { cn } from '@/lib/utils'
 import { OUTPUT_PROFILES, type OutputProfile } from '@/components/shell/browser-toolbar'
 import { Button } from '@/components/ui/button'
@@ -115,7 +117,7 @@ function InspectBody({ selection }: { selection: SectionDraft }): React.JSX.Elem
 
       <Field label="Source">
         <button
-          onClick={() => window.api.browser.openExternal(selection.url)}
+          onClick={() => openInApp(selection.url)}
           className="flex items-start gap-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
         >
           <ExternalLink className="mt-0.5 size-3 shrink-0" />
@@ -242,7 +244,7 @@ function AssetsBody({ selection }: { selection: SectionDraft | null }): React.JS
         {selection.assets.map((asset) => (
           <button
             key={asset}
-            onClick={() => asset.startsWith('http') && window.api.browser.openExternal(asset)}
+            onClick={() => asset.startsWith('http') && openInApp(asset)}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <ImageIcon className="size-3.5 shrink-0" />
@@ -260,16 +262,12 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
   const [profile, setProfile] = useState<OutputProfile>('react-shadcn')
   const [workspaceId, setWorkspaceId] = useState<string>('')
   const [extra, setExtra] = useState('')
-  const [agents, setAgents] = useState<AgentInstallation[] | null>(null)
+  const agents = useAgents()
   const [preview, setPreview] = useState<{ prompt: string; sourceDir: string; root: string } | null>(
     null
   )
   const [starting, setStarting] = useState(false)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    void window.api.agents.detect().then(setAgents)
-  }, [])
 
   useEffect(() => {
     if (!workspaceId && workspaces.length > 0) {
@@ -309,8 +307,8 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
     )
   }
 
-  const run = async (): Promise<void> => {
-    if (!workspace || !agent?.path || !selection) return
+  const run = async (pick: AgentInstallation): Promise<void> => {
+    if (!workspace || !pick.path || !selection) return
     setStarting(true)
     try {
       const source = savedSource ?? (await saveSelection())
@@ -321,7 +319,8 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
         sourceIds: [source.id],
         extra,
         kind,
-        binary: agent.path,
+        binary: pick.path,
+        agent: pick.id,
         name: selection.name
       })
       await refresh()
@@ -336,10 +335,11 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
     }
   }
 
+  const installed = agents?.filter((a) => a.path) ?? []
   const blocker = workspaces.length === 0
     ? 'Create a workspace so the agent has somewhere it is allowed to write.'
-    : !agent?.path
-      ? 'The agent CLI for this workspace was not found on this machine.'
+    : agents !== null && installed.length === 0
+      ? 'No agent CLI was found on this machine — install Claude Code, Codex, Grok or OpenCode.'
       : null
 
   return (
@@ -414,18 +414,16 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
         <Field label="Agent">
           {agents === null ? (
             <p className="text-xs text-muted-foreground">Looking for installed CLIs…</p>
-          ) : agent?.path ? (
-            <div className="flex items-center gap-2 text-sm">
+          ) : installed.length > 0 ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
               <Terminal className="size-3.5 text-emerald-500" />
-              <span>{agent.label}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {agent.version ?? agent.path}
-              </span>
-            </div>
+              {installed.map((a) => a.label).join(', ')} — pick one on the button below
+              {agent?.path && `; this workspace prefers ${agent.label}`}.
+            </p>
           ) : (
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-200/90">
-              No agent CLI detected. Install and authenticate Claude Code or Codex — Nisaba never
-              ships or proxies a model of its own.
+              No agent CLI detected. Install and authenticate Claude Code, Codex, Grok or OpenCode
+              — Nisaba never ships or proxies a model of its own.
             </p>
           )}
         </Field>
@@ -463,10 +461,14 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
           </p>
         )}
 
-        <Button disabled={Boolean(blocker) || starting} onClick={() => void run()}>
+        <AgentMenu
+          variant="default"
+          disabled={Boolean(blocker) || starting}
+          onPick={(picked) => void run(picked)}
+        >
           {starting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
           {kind === 'template' ? 'Convert to a template' : 'Convert to a component'}
-        </Button>
+        </AgentMenu>
       </div>
     </ScrollArea>
   )

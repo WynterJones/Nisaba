@@ -37,6 +37,7 @@ import {
   startExtract
 } from '@/actions'
 import { useAudit } from '@/audit'
+import { toast } from 'sonner'
 import { ElementPicker } from '@/components/shell/element-picker'
 import type { ViewportPreset } from '@/actions'
 import { useActiveTab, useApp } from '@/store'
@@ -173,7 +174,13 @@ export function BrowserToolbar(): React.JSX.Element {
     setScanning(true)
     const found = await detectElements()
     setScanning(false)
-    if (found.length === 0) return
+    if (found.length === 0) {
+      // Silence here reads as a broken button — the page genuinely had nothing to offer.
+      toast.info('No elements found on this page', {
+        description: 'Nisaba looks for buttons, inputs, cards and badges that are actually visible.'
+      })
+      return
+    }
     setOverlay(true)
     setCandidates(found)
   }

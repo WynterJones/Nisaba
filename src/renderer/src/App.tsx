@@ -4,6 +4,7 @@ import { captureFullPage, captureRegion, captureViewport, startExtract } from '@
 import { useApp, useLibrary } from '@/store'
 import { CommandPalette } from '@/components/shell/command-palette'
 import { JobsDrawer } from '@/components/shell/jobs-drawer'
+import { Onboarding } from '@/components/shell/onboarding'
 import { Sidebar } from '@/components/shell/sidebar'
 import { Splash } from '@/components/shell/splash'
 import { TerminalDock } from '@/components/shell/terminal-dock'
@@ -90,6 +91,7 @@ function Shell(): React.JSX.Element {
       </div>
       <CommandPalette />
       <Splash />
+      <Onboarding />
     </div>
   )
 }

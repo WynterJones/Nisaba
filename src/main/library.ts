@@ -4,6 +4,7 @@ import { mkdir, writeFile, rm, stat } from 'fs/promises'
 import { dirname, join, relative, isAbsolute } from 'path'
 import { pathToFileURL } from 'url'
 import type { DesignSpec, Levels } from '../shared/design-spec'
+import type { AgentId } from './agents'
 
 export type Rect = { x: number; y: number; width: number; height: number }
 
@@ -125,7 +126,7 @@ export type WorkspaceRecord = Base & {
   name: string
   root: string
   profile: string
-  agent: 'claude' | 'codex'
+  agent: AgentId
 }
 
 export type JobEvent = { at: number; stream: 'stdout' | 'stderr' | 'system'; text: string }

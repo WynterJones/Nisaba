@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { ElementRecord } from '../../../preload'
+import { openInApp } from '@/actions'
 
 /** One saved primitive plus every interaction state Nisaba could capture for it. */
 function ElementCard({
@@ -70,7 +71,7 @@ function ElementCard({
             variant="ghost"
             size="icon-sm"
             title="Open source page"
-            onClick={() => window.api.browser.openExternal(record.url)}
+            onClick={() => openInApp(record.url)}
           >
             <ExternalLink className="size-3.5" />
           </Button>

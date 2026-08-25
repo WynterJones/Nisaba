@@ -6,6 +6,7 @@ import {
   Folder,
   RefreshCw,
   Shield,
+  Sparkles,
   ShieldCheck,
   Upload,
   XCircle
@@ -13,6 +14,8 @@ import {
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router'
 import { useApp, useLibrary } from '@/store'
+import { refreshAgents, useAgents } from '@/agents'
+import { useOnboarding } from '@/components/shell/onboarding'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,7 +23,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import mark from '@/assets/mark.png'
 import wynter from '@/assets/wynter.png'
-import type { AgentInstallation } from '../../../preload'
 
 function Section({
   icon: Icon,
@@ -60,7 +62,7 @@ function Section({
 export default function Settings(): React.JSX.Element {
   const [version, setVersion] = useState('')
   const [root, setRoot] = useState('')
-  const [agents, setAgents] = useState<AgentInstallation[] | null>(null)
+  const agents = useAgents()
   const { captures, sections, elements, designSystems, refresh } = useLibrary()
   const newTab = useApp((s) => s.newTab)
   const navigate = useNavigate()
@@ -93,15 +95,9 @@ export default function Settings(): React.JSX.Element {
     }
   }
 
-  const detect = (): void => {
-    setAgents(null)
-    void window.api.agents.detect().then(setAgents)
-  }
-
   useEffect(() => {
     void window.api.getVersion().then(setVersion)
     void window.api.library.root().then(setRoot)
-    detect()
   }, [])
 
   return (
@@ -181,10 +177,16 @@ export default function Settings(): React.JSX.Element {
               </div>
             ))
           )}
-          <Button variant="secondary" size="sm" className="self-start" onClick={detect}>
-            <RefreshCw className="size-3.5" />
-            Re-scan
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={() => void refreshAgents()}>
+              <RefreshCw className="size-3.5" />
+              Re-scan
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => useOnboarding.getState().start()}>
+              <Sparkles className="size-3.5" />
+              Replay onboarding
+            </Button>
+          </div>
         </Section>
 
         <Section

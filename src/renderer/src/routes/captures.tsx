@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { useApp, useLibrary } from '@/store'
 import { Button } from '@/components/ui/button'
 import type { CaptureRecord } from '../../../preload'
+import { openInApp } from '@/actions'
 
 const KIND_LABEL: Record<CaptureRecord['kind'], string> = {
   viewport: 'Viewport',
@@ -55,7 +56,7 @@ function RowActions({
         variant="ghost"
         size="icon-sm"
         title="Open source page"
-        onClick={() => window.api.browser.openExternal(record.url)}
+        onClick={() => openInApp(record.url)}
       >
         <ExternalLink className="size-3.5" />
       </Button>

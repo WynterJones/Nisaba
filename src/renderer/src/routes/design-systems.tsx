@@ -11,6 +11,7 @@ import {
   Wand2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { AgentMenu } from '@/components/shell/agent-menu'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { DesignPreview } from '@/components/library/design-preview'
 import { DEFAULT_LEVELS, toDesignMd, type Levels } from '../../../shared/design-spec'
@@ -27,7 +28,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CodeView } from '@/components/ui/code-view'
-import type { DesignSystemRecord } from '../../../preload'
+import type { AgentId, DesignSystemRecord } from '../../../preload'
+import { openInApp } from '@/actions'
 
 function TokenList({ label, values }: { label: string; values: string[] }): React.JSX.Element {
   return (
@@ -56,7 +58,7 @@ function TokenList({ label, values }: { label: string; values: string[] }): Reac
 /** Which profiles have an agent working on them right now, so the UI can say so. */
 function useRefining(): {
   refining: Set<string>
-  start: (record: DesignSystemRecord) => Promise<void>
+  start: (record: DesignSystemRecord, agent?: AgentId) => Promise<void>
 } {
   const [refining, setRefining] = useState<Set<string>>(new Set())
 
@@ -78,11 +80,11 @@ function useRefining(): {
     []
   )
 
-  const start = async (record: DesignSystemRecord): Promise<void> => {
+  const start = async (record: DesignSystemRecord, agent?: AgentId): Promise<void> => {
     try {
-      const state = await window.api.design.refine(record)
+      const state = await window.api.design.refine(record, agent)
       setRefining((current) => new Set(current).add(record.id))
-      toast.info(`${state.agent === 'claude' ? 'Claude Code' : 'Codex'} is refining this profile`, {
+      toast.info(`${state.agent} is refining this profile`, {
         description: 'It reads the screenshot and the raw samples. Watch it in the terminal dock.'
       })
     } catch (error) {
@@ -101,7 +103,7 @@ function Detail({
 }: {
   record: DesignSystemRecord
   onClose: () => void
-  onRefine: () => void
+  onRefine: (agent: AgentId) => void
   refining: boolean
 }): React.JSX.Element {
   const [levels, setLevels] = useState<Levels>(record.levels ?? DEFAULT_LEVELS)
@@ -241,11 +243,10 @@ function Detail({
 
         <div className="flex items-center justify-end gap-2">
           {record.spec && (
-            <Button
-              variant="secondary"
+            <AgentMenu
               disabled={refining}
-              title="Hand the screenshot and the raw samples to your agent CLI and let it correct the measurements"
-              onClick={onRefine}
+              title="Hand the screenshot and the raw samples to an agent CLI and let it correct the measurements"
+              onPick={(agent) => onRefine(agent.id)}
             >
               {refining ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -253,7 +254,7 @@ function Detail({
                 <Wand2 className="size-4" />
               )}
               {refining ? 'Refining…' : record.refinedAt ? 'Refine again' : 'Refine with agent'}
-            </Button>
+            </AgentMenu>
           )}
           {dirty && (
             <span className="mr-auto text-[11px] text-amber-300/80">
@@ -329,24 +330,25 @@ export default function DesignSystems(): React.JSX.Element {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Button
+                      <AgentMenu
                         variant="ghost"
-                        size="icon-sm"
+                        size="sm"
+                        className="px-2"
                         disabled={!record.spec || refining.has(record.id)}
-                        title="Refine this profile with your agent"
-                        onClick={() => void start(record)}
+                        title="Refine this profile with an agent"
+                        onPick={(agent) => void start(record, agent.id)}
                       >
                         {refining.has(record.id) ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
                           <Wand2 className="size-3.5" />
                         )}
-                      </Button>
+                      </AgentMenu>
                       <Button
                         variant="ghost"
                         size="icon-sm"
                         title="Open source page"
-                        onClick={() => window.api.browser.openExternal(record.url)}
+                        onClick={() => openInApp(record.url)}
                       >
                         <ExternalLink className="size-3.5" />
                       </Button>
@@ -398,7 +400,7 @@ export default function DesignSystems(): React.JSX.Element {
           record={designSystems.find((d) => d.id === open.id) ?? open}
           onClose={() => setOpen(null)}
           refining={refining.has(open.id)}
-          onRefine={() => void start(open)}
+          onRefine={(agent) => void start(open, agent)}
         />
       )}
     </>

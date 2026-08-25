@@ -63,6 +63,8 @@ type AppState = {
   setViewportWidth: (width: number | null) => void
   /** Native views paint above all renderer HTML, so modals must hide them while open. */
   setOverlay: (open: boolean) => void
+  /** Still of the hidden page, blurred behind whatever UI is covering it. */
+  overlayShot: string | null
 }
 
 const blankTab = (id: string, url: string): TabState => ({
@@ -110,6 +112,7 @@ export const useApp = create<AppState>((set, get) => ({
   jobsOpen: false,
   viewportMounted: false,
   viewportWidth: null,
+  overlayShot: null,
 
   newTab: (url = '', background = false) => {
     const id = nextId()
@@ -162,10 +165,15 @@ export const useApp = create<AppState>((set, get) => ({
 
   setOverlay: (open) => {
     const { activeTabId, viewportMounted } = get()
-    if (open) void window.api.browser.hideAll()
+    // The still stays up until the page comes back, so UI never sits on a black rectangle.
+    if (open)
+      void window.api.browser.hideAll().then((shot) => shot && set({ overlayShot: shot }))
     // Only bring the page back if a viewport is actually on screen to hold it — otherwise
     // it would paint over whichever library route the user is really looking at.
-    else if (activeTabId && viewportMounted) void window.api.browser.activate(activeTabId)
+    else {
+      set({ overlayShot: null })
+      if (activeTabId && viewportMounted) void window.api.browser.activate(activeTabId)
+    }
   }
 }))
 

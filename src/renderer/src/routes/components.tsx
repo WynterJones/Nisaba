@@ -35,6 +35,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { CodeView } from '@/components/ui/code-view'
 import type { ComponentRecord } from '../../../preload'
+import { openInApp } from '@/actions'
 
 const CHECK_ICON: Record<Check['status'], typeof CheckCircle2> = {
   pending: CircleSlash,
@@ -78,6 +79,11 @@ function Detail({
     void window.api.preview.state(record.workspaceId).then(setPreview)
   }, [workspace?.root])
 
+  // Opening on an empty pane hides the one thing the dialog is for — show the first file.
+  useEffect(() => {
+    if (record.files.length > 0) void openFile(record.files[0])
+  }, [record.id])
+
   useEffect(
     () =>
       window.api.verify.onProgress((p) => {
@@ -107,6 +113,8 @@ function Detail({
       toast[passed ? 'success' : 'error'](
         passed ? 'All checks passed — marked verified' : 'Verification failed'
       )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
     } finally {
       setVerifying(false)
     }
@@ -141,6 +149,8 @@ function Detail({
       toast.success('Preview running', {
         description: `${state.url} — capture it and use Compare against the source.`
       })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
     } finally {
       setStarting(false)
     }
@@ -202,7 +212,7 @@ function Detail({
                 sources.map((section) => (
                   <button
                     key={section.id}
-                    onClick={() => window.api.browser.openExternal(section.url)}
+                    onClick={() => openInApp(section.url)}
                     className="flex items-center gap-2 rounded-lg border border-border p-1.5 text-left transition-colors hover:border-brand/50"
                   >
                     <img

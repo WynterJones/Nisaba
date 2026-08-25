@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { AgentInstallation, WorkspaceProbe, WorkspaceRecord } from '../../../preload'
+import type { AgentId, AgentInstallation, WorkspaceProbe, WorkspaceRecord } from '../../../preload'
 
 /** One dialog for both: with `workspace` it edits that record, without it creates a new one. */
 function WorkspaceDialog({ workspace }: { workspace?: WorkspaceRecord }): React.JSX.Element {
@@ -36,7 +36,7 @@ function WorkspaceDialog({ workspace }: { workspace?: WorkspaceRecord }): React.
   const [root, setRoot] = useState(workspace?.root ?? '')
   const [name, setName] = useState(workspace?.name ?? '')
   const [profile, setProfile] = useState<string>(workspace?.profile ?? 'react-shadcn')
-  const [agent, setAgent] = useState<'claude' | 'codex'>(workspace?.agent ?? 'claude')
+  const [agent, setAgent] = useState<AgentId>(workspace?.agent ?? 'claude')
   const [probe, setProbe] = useState<WorkspaceProbe | null>(null)
   const [agents, setAgents] = useState<AgentInstallation[]>([])
   const editing = !!workspace
@@ -169,7 +169,7 @@ function WorkspaceDialog({ workspace }: { workspace?: WorkspaceRecord }): React.
             {installed.length === 0 ? (
               <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-200/90">
                 No agent CLI detected. You can still create the workspace — jobs will stay disabled
-                until Claude Code or Codex is installed and authenticated.
+                until one of Claude Code, Codex, Grok or OpenCode is installed and authenticated.
               </p>
             ) : (
               <div className="flex gap-1.5">

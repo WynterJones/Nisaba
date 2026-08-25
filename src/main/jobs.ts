@@ -18,6 +18,7 @@ import {
 import { isInside } from './workspaces'
 import { killTerminal, openTerminal } from './terminals'
 import { renderClaudeStream } from './agent-stream'
+import { AGENTS, type AgentId } from './agents'
 
 /** job id → terminal id, so a cancel can find the PTY that is running it. */
 const running = new Map<string, string>()
@@ -197,36 +198,19 @@ async function writeSourcePackage(
 }
 
 export function buildInvocation(
-  agent: 'claude' | 'codex',
+  agent: AgentId,
   binary: string,
   prompt: string
 ): { file: string; args: string[]; display: string; transform?: (chunk: string) => string } {
   // Version-tolerant, non-interactive invocations. The resolved command is always shown
   // to the user before the first write-enabled run.
-  const spec =
-    agent === 'claude'
-      ? {
-          file: binary,
-          // Plain `--print` says nothing until the whole run finishes, which on a long job
-          // leaves the terminal looking dead for minutes. Stream the events and render them.
-          args: [
-            '--print',
-            '--output-format',
-            'stream-json',
-            '--verbose',
-            '--permission-mode',
-            'acceptEdits',
-            prompt
-          ],
-          transform: renderClaudeStream()
-        }
-      : { file: binary, args: ['exec', '--full-auto', prompt] }
-
+  const args = AGENTS[agent].headless(prompt)
   return {
-    ...spec,
-    display: `${spec.file} ${spec.args
-      .map((a) => (a === prompt ? '"<resolved prompt>"' : a))
-      .join(' ')}`
+    file: binary,
+    args,
+    // Only Claude's stream is JSON events; the others already print for humans.
+    transform: agent === 'claude' ? renderClaudeStream() : undefined,
+    display: `${binary} ${args.map((a) => (a === prompt ? '"<resolved prompt>"' : a)).join(' ')}`
   }
 }
 
@@ -289,6 +273,7 @@ export function registerJobIpc(): void {
         kind: 'component' | 'template'
         binary: string
         name: string
+        agent?: AgentId
       }
     ): Promise<JobRecord> => {
       const index = await readIndex()
@@ -304,7 +289,8 @@ export function registerJobIpc(): void {
       await writeSourcePackage(sourceDir, sections)
 
       const prompt = resolvePrompt({ ...input, sources: sections, sourceDir })
-      const invocation = buildInvocation(workspace.agent, input.binary, prompt)
+      const agent = input.agent ?? workspace.agent
+      const invocation = buildInvocation(agent, input.binary, prompt)
       const startedAt = Date.now()
 
       const job = await addRecord('jobs', {
@@ -313,7 +299,7 @@ export function registerJobIpc(): void {
         kind: input.kind,
         status: 'running',
         title: input.name,
-        agent: workspace.agent,
+        agent,
         profile: input.profile,
         workspaceId: workspace.id,
         sourceIds: input.sourceIds,

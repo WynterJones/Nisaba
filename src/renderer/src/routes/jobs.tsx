@@ -194,7 +194,7 @@ export default function Jobs(): React.JSX.Element {
                   <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
                     {job.agent}
                   </Badge>
-                  <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                  <span className="shrink-0 whitespace-nowrap text-right text-xs text-muted-foreground">
                     {job.status} · {timeAgo(job.createdAt)}
                   </span>
                   <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

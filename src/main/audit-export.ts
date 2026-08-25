@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { copyFile, mkdir, writeFile } from 'fs/promises'
 import { join, relative } from 'path'
+import { AGENTS, type AgentId } from './agents'
 import { libraryRoot, readIndex, type AuditPin, type AuditRecord } from './library'
 import { openTerminal, type TerminalSummary } from './terminals'
 import { isInside } from './workspaces'
@@ -229,6 +230,29 @@ export function implementPrompt(planDir: string, record: AuditRecord): string {
   ].join('\n')
 }
 
+/**
+ * The whole plan as one pasteable prompt. The terminal handoff points at a folder, which is
+ * useless to an agent that cannot read the disk — this inlines TASKS.md so it works anywhere.
+ */
+export function clipboardPrompt(record: AuditRecord, planDir: string | null): string {
+  const { tasks } = buildPlan(record)
+  return [
+    `Work this design audit of ${record.url} — ${record.pins.length} task(s).`,
+    '',
+    'Work through the tasks in order. For each one: find the element it names, make the change,',
+    'and say what you changed. If a task’s "Likely source" file is wrong, find the right one and',
+    'say so. The reviewer notes are a person’s words; the selectors, styles and source guesses',
+    'were measured by Nisaba and may be stale. Stop and ask if a task is ambiguous.',
+    planDir
+      ? `\nThe full plan, screenshots and plan.json are on disk at ${planDir}.`
+      : '',
+    '',
+    '---',
+    '',
+    tasks
+  ].join('\n')
+}
+
 export function registerAuditExportIpc(): void {
   /**
    * Writes the plan into the workspace and hands it to the agent on a live terminal, so the
@@ -236,34 +260,33 @@ export function registerAuditExportIpc(): void {
    */
   ipcMain.handle(
     'audit:implement',
-    async (_e, record: AuditRecord, binary?: string): Promise<TerminalSummary> => {
+    async (_e, record: AuditRecord, pick?: AgentId): Promise<TerminalSummary> => {
       const root = record.workspaceRoot
       if (!root) throw new Error('This audit has no workspace — set one before implementing it')
 
       const index = await readIndex()
       const workspace = index.workspaces.find((w) => w.root === root)
-      const agent = workspace?.agent ?? 'claude'
+      const agent = pick ?? workspace?.agent ?? 'claude'
 
       const planDir = join(root, '.nisaba', 'audits', `${slug(record.name)}-${record.id.slice(0, 8)}`)
       if (!isInside(root, planDir)) throw new Error('Refusing to write outside the workspace')
       await writePlan(planDir, record)
 
       const prompt = implementPrompt(relative(root, planDir) || planDir, record)
-      const file = binary || agent
-      // Both CLIs take an opening prompt as a positional and then stay interactive.
+      // Bare binary name: terminals.ts prepends the install locations to PATH.
       return openTerminal({
         title: `Implement · ${record.name}`,
         cwd: root,
-        file,
-        args: [prompt],
-        display: `${file} "<audit plan>"`
+        file: agent,
+        args: AGENTS[agent].open(prompt),
+        display: `${agent} "<audit plan>"`
       })
     }
   )
 
-  /** The same prompt the agent gets, for pasting into an agent Nisaba does not run. */
-  ipcMain.handle('audit:prompt', (_e, record: AuditRecord, planDir: string) =>
-    implementPrompt(planDir, record)
+  /** The whole plan, for pasting into an agent Nisaba does not run. */
+  ipcMain.handle('audit:prompt', (_e, record: AuditRecord, planDir: string | null) =>
+    clipboardPrompt(record, planDir ?? null)
   )
 
   ipcMain.handle(

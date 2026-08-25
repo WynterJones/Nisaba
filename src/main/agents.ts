@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import { AGENTS, AGENT_IDS, type AgentId } from '../shared/agents'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { homedir } from 'os'
@@ -8,8 +9,10 @@ import { constants } from 'fs'
 
 const run = promisify(execFile)
 
+export * from '../shared/agents'
+
 export type AgentInstallation = {
-  id: 'claude' | 'codex'
+  id: AgentId
   label: string
   path: string | null
   version: string | null
@@ -48,7 +51,7 @@ async function locate(binary: string): Promise<string | null> {
   return null
 }
 
-async function detect(id: AgentInstallation['id'], label: string): Promise<AgentInstallation> {
+async function detect(id: AgentId): Promise<AgentInstallation> {
   const path = await locate(id)
   let version: string | null = null
   if (path) {
@@ -59,11 +62,11 @@ async function detect(id: AgentInstallation['id'], label: string): Promise<Agent
       /* present but unresponsive to --version; still usable */
     }
   }
-  return { id, label, path, version }
+  return { id, label: AGENTS[id].label, path, version }
 }
 
 export async function detectAgents(): Promise<AgentInstallation[]> {
-  return [await detect('claude', 'Claude Code CLI'), await detect('codex', 'Codex CLI')]
+  return Promise.all(AGENT_IDS.map(detect))
 }
 
 export function registerAgentIpc(): void {

@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn, type ChildProcess } from 'child_process'
-import { readFile } from 'fs/promises'
+import { readFile, stat } from 'fs/promises'
 import { join } from 'path'
 import { SEARCH_PATHS } from './agents'
 
@@ -93,6 +93,20 @@ function run(
   return { child, done }
 }
 
+/**
+ * A workspace root can be renamed or deleted long after it was nominated. Spawning into a cwd
+ * that is gone gets the tool to walk up to some parent and fail there instead, which reads as
+ * a broken project rather than a missing folder — say what actually happened.
+ */
+async function requireFolder(root: string): Promise<void> {
+  const ok = await stat(root).then((s) => s.isDirectory(), () => false)
+  if (!ok) {
+    throw new Error(
+      `This workspace's folder is gone — ${root}. Point the workspace at a folder that exists.`
+    )
+  }
+}
+
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload)
 }
@@ -105,6 +119,7 @@ export function registerVerifyIpc(): void {
   ipcMain.handle(
     'verify:run',
     async (_e, input: { root: string; checks: Check[]; componentId: string }): Promise<Check[]> => {
+      await requireFolder(input.root)
       const results: Check[] = input.checks.map((c) => ({ ...c, status: 'pending', output: '', ms: 0 }))
 
       for (const [i, check] of results.entries()) {
@@ -141,6 +156,7 @@ export function registerVerifyIpc(): void {
   ipcMain.handle(
     'preview:start',
     async (_e, input: { workspaceId: string; root: string; command: string }): Promise<PreviewState> => {
+      await requireFolder(input.root)
       // Only a server that actually announced a URL is worth reusing — one still flailing
       // would hand the caller the same empty state forever.
       const existing = previewState.get(input.workspaceId)

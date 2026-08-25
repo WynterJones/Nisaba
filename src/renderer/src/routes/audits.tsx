@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { copyAuditPrompt, implementAudit } from '@/actions'
 import { useAudit } from '@/audit'
+import { AgentMenu } from '@/components/shell/agent-menu'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { useApp, useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
@@ -95,34 +96,31 @@ function Detail({
             <MousePointerClick className="size-4" />
             Add more pins
           </Button>
-          <Button
-            variant="secondary"
+          <AgentMenu
             disabled={!record.workspaceRoot}
             title={
               record.workspaceRoot
-                ? 'Write the plan into the workspace and start the agent on it'
+                ? 'Write the plan into the workspace and start an agent on it'
                 : 'This audit has no workspace'
             }
-            onClick={() => void implementAudit(record)}
+            onPick={(agent) => void implementAudit(record, agent.id)}
           >
             <SquareTerminal className="size-4" />
             Implement with agent
+          </AgentMenu>
+          <Button
+            variant="secondary"
+            title="Copy the whole plan as one prompt, for an agent outside Nisaba"
+            onClick={() => void copyAuditPrompt(record)}
+          >
+            <ClipboardCopy className="size-4" />
+            Copy prompt
           </Button>
           {record.exportedTo && (
-            <>
-              <Button
-                variant="secondary"
-                title="Copy an agent prompt pointing at the exported folder"
-                onClick={() => void copyAuditPrompt(record)}
-              >
-                <ClipboardCopy className="size-4" />
-                Copy prompt
-              </Button>
-              <Button variant="secondary" onClick={() => window.api.jobs.open(record.exportedTo!)}>
-                <FolderOpen className="size-4" />
-                Open plan folder
-              </Button>
-            </>
+            <Button variant="secondary" onClick={() => window.api.jobs.open(record.exportedTo!)}>
+              <FolderOpen className="size-4" />
+              Open plan folder
+            </Button>
           )}
           <Button
             onClick={async () => {
