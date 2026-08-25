@@ -98,7 +98,9 @@ function UpdateDialog({
       case 'available':
         return {
           title: `Version ${version} is available`,
-          body: state.notes?.replace(/<[^>]+>/g, '').slice(0, 400) || 'Download it and restart to finish.',
+          body: state.notes
+            ? 'Here is what changed. Download it and restart to finish.'
+            : 'Download it and restart to finish.',
           icon: <Download className="size-5 text-brand-bright" />
         }
       case 'downloading':
@@ -149,6 +151,10 @@ function UpdateDialog({
           <DialogDescription className="whitespace-pre-wrap">{step.body}</DialogDescription>
         </DialogHeader>
 
+        {(state.status === 'available' || state.status === 'ready') && (
+          <ReleaseNotes notes={state.notes} />
+        )}
+
         {state.status === 'downloading' && (
           <div className="flex flex-col gap-1.5">
             <Progress value={state.percent} />
@@ -185,5 +191,34 @@ function UpdateDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Release notes arrive as GitHub's rendered HTML. Rather than ship a sanitiser, the block
+ * tags become line breaks and everything else is dropped — what is left is the changelog.
+ */
+function ReleaseNotes({ notes }: { notes?: string | null }): React.JSX.Element | null {
+  const lines = (notes ?? '')
+    .replace(/<\/(?:li|p|h\d|div|tr)>|<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (_, e) =>
+      ({ nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" })[e as string] ?? ' '
+    )
+    .split('\n')
+    .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
+    .filter(Boolean)
+
+  if (lines.length === 0) return null
+
+  return (
+    <ul className="max-h-56 overflow-y-auto rounded-lg border border-border bg-secondary/30 p-3 text-sm">
+      {lines.map((line, i) => (
+        <li key={i} className="flex gap-2 py-0.5 text-muted-foreground">
+          <span className="mt-[7px] size-1 shrink-0 rounded-full bg-brand-bright" />
+          <span className="min-w-0 flex-1">{line}</span>
+        </li>
+      ))}
+    </ul>
   )
 }

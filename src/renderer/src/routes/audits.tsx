@@ -108,14 +108,23 @@ function Detail({
             <SquareTerminal className="size-4" />
             Implement with agent
           </AgentMenu>
-          <Button
-            variant="secondary"
-            title="Copy the whole plan as one prompt, for an agent outside Nisaba"
-            onClick={() => void copyAuditPrompt(record)}
+          <span
+            title={
+              record.exportedTo
+                ? 'Copy the whole plan as one prompt, for an agent outside Nisaba'
+                : 'Export the plan first — the prompt points the agent at the exported folder'
+            }
           >
-            <ClipboardCopy className="size-4" />
-            Copy prompt
-          </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              disabled={!record.exportedTo}
+              onClick={() => void copyAuditPrompt(record)}
+            >
+              <ClipboardCopy className="size-4" />
+              Copy prompt
+            </Button>
+          </span>
           {record.exportedTo && (
             <Button variant="secondary" onClick={() => window.api.jobs.open(record.exportedTo!)}>
               <FolderOpen className="size-4" />

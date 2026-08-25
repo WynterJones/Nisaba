@@ -70,6 +70,7 @@ function Detail({
   const [verifying, setVerifying] = useState(false)
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const [starting, setStarting] = useState(false)
+  const [sandboxing, setSandboxing] = useState(false)
   const workspace = workspaces.find((w) => w.id === record.workspaceId)
 
   useEffect(() => {
@@ -155,6 +156,28 @@ function Detail({
       setStarting(false)
     }
   }
+  /** Renders the component on its own throwaway port — no project around it required. */
+  const runSandbox = async (): Promise<void> => {
+    const entry = file ?? record.files.find((f) => /\.(tsx|jsx)$/.test(f)) ?? record.files[0]
+    if (!entry) {
+      toast.error('This record has no file to preview')
+      return
+    }
+    setSandboxing(true)
+    try {
+      await window.api.preview.component({
+        id: record.id,
+        dir: record.dir,
+        file: entry,
+        title: record.name
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
+    } finally {
+      setSandboxing(false)
+    }
+  }
+
   const sources = sections.filter((s) => record.sourceIds.includes(s.id))
   const job = jobs.find((j) => j.id === record.jobId)
 
@@ -279,12 +302,21 @@ function Detail({
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             variant="secondary"
+            disabled={sandboxing || record.files.length === 0}
+            onClick={() => void runSandbox()}
+            title="Open just this component in its own window, on a throwaway port"
+          >
+            {sandboxing ? <Loader2 className="size-4 animate-spin" /> : <MonitorPlay className="size-4" />}
+            Preview component
+          </Button>
+          <Button
+            variant="secondary"
             disabled={!workspace || starting}
             onClick={() => void runPreview()}
             title={workspace ? 'Start the dev server and open it' : 'No workspace on this record'}
           >
-            {starting ? <Loader2 className="size-4 animate-spin" /> : <MonitorPlay className="size-4" />}
-            {preview?.running ? 'Open preview' : 'Preview'}
+            {starting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+            {preview?.running ? 'Open dev server' : 'Dev server'}
           </Button>
           <Button
             variant="secondary"

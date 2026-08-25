@@ -1,6 +1,6 @@
 {
   "name": "nisaba",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A desktop browser that turns design research into a reusable library",
   "main": "./out/main/index.js",
   "author": "WynterJones",
@@ -16,6 +16,7 @@
     "check:extract": "node --experimental-strip-types scripts/check-extract.mts",
     "check:stream": "node --experimental-strip-types scripts/check-stream.mts",
     "check:resources": "node --experimental-strip-types scripts/check-resources.mts",
+    "check:preview": "node --experimental-strip-types scripts/check-preview.mts",
     "dist": "npm run build && electron-builder --mac --arm64 --x64 --publish never",
     "notarize": "bash scripts/notarize.sh",
     "release": "npm run build && electron-builder --mac --arm64 --x64 --publish never",

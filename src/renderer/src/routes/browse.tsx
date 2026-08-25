@@ -79,14 +79,8 @@ function ViewportHost(): React.JSX.Element {
       >
         {/* The native view is hidden while UI covers it; this still keeps the page in sight. */}
         {shot && (
-          <div className="absolute inset-0 animate-in duration-200 fade-in-0">
-            <img
-              src={shot}
-              alt=""
-              // Scaled up because a blur otherwise feathers the edges into the background.
-              className="size-full scale-105 object-cover object-top blur-[10px] saturate-[0.9]"
-            />
-            <div className="absolute inset-0 bg-background/40" />
+          <div className="absolute inset-0">
+            <img src={shot} alt="" className="size-full object-cover object-top" />
           </div>
         )}
       </div>

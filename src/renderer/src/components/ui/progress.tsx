@@ -21,7 +21,11 @@ function Progress({
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className="progress-stripes relative h-full w-full flex-1 rounded-full bg-gradient-to-r from-brand to-brand-bright shadow-[0_0_12px_-2px_var(--brand-bright)] transition-transform duration-500 ease-out"
+        // Stripes say "still working" — a finished bar has nothing left to animate.
+        className={cn(
+          "relative h-full w-full flex-1 rounded-full bg-gradient-to-r from-brand to-brand-bright shadow-[0_0_12px_-2px_var(--brand-bright)] transition-transform duration-500 ease-out",
+          (value ?? 0) < 100 && "progress-stripes"
+        )}
         style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
       />
     </ProgressPrimitive.Root>

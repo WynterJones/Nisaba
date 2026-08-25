@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router'
 import {
   ChevronDown,
+  ClipboardCopy,
   FileCode2,
-  FolderOpen,
   Loader2,
   MousePointerClick,
   Save,
@@ -152,7 +151,6 @@ export function AuditPanel(): React.JSX.Element {
   const { active, draft, savedId, stop, start, save, reset } = useAudit()
   const workspaces = useLibrary((s) => s.workspaces)
   const setOverlay = useApp((s) => s.setOverlay)
-  const navigate = useNavigate()
   const pins = draft?.pins ?? []
 
   const finish = async (): Promise<void> => {
@@ -174,6 +172,8 @@ export function AuditPanel(): React.JSX.Element {
       if (result) {
         await window.api.library.patch('audits', record.id, { exportedTo: result.path })
         await useLibrary.getState().refresh()
+        const d = useAudit.getState().draft
+        if (d) useAudit.setState({ draft: { ...d, exportedTo: result.path } })
         toast.success(`Exported ${result.tasks} tasks`, {
           description: result.path,
           action: {
@@ -187,6 +187,13 @@ export function AuditPanel(): React.JSX.Element {
     } finally {
       setOverlay(false)
     }
+  }
+
+  // The prompt points an outside agent at the exported folder, so there has to be one.
+  const copyPrompt = async (): Promise<void> => {
+    await stop()
+    const record = await save()
+    if (record) await copyAuditPrompt({ ...record, exportedTo: draft?.exportedTo ?? record.exportedTo })
   }
 
   /** Saving first is what gives the plan its shots and source matches on disk. */
@@ -220,24 +227,13 @@ export function AuditPanel(): React.JSX.Element {
       </div>
 
       {draft && (
-        <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
+        <div className="shrink-0 border-b border-border p-3">
           <Input
             value={draft.name}
             onChange={(e) => useAudit.setState({ draft: { ...draft, name: e.target.value } })}
             className="h-8 text-sm"
             placeholder="Review name"
           />
-          <p className="truncate text-[10px] text-muted-foreground">{draft.url}</p>
-          <button
-            onClick={() => navigate('/workspaces')}
-            className="flex items-center gap-1.5 truncate text-left text-[10px]"
-            title="Tasks are matched against this folder"
-          >
-            <FolderOpen className="size-2.5 shrink-0 text-muted-foreground" />
-            <span className="truncate font-mono text-muted-foreground">
-              {draft.workspaceRoot ?? 'No workspace — source files will not be matched'}
-            </span>
-          </button>
         </div>
       )}
 
@@ -300,6 +296,25 @@ export function AuditPanel(): React.JSX.Element {
             Export plan
           </Button>
         </div>
+        {/* Wrapper carries the title: a disabled Button has pointer-events-none, so it can't. */}
+        <span
+          className="block"
+          title={
+            draft?.exportedTo
+              ? 'Copy the whole plan as one prompt, for an agent outside Nisaba'
+              : 'Export the plan first — the prompt points the agent at the exported folder'
+          }
+        >
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={!draft?.exportedTo}
+            onClick={() => void copyPrompt()}
+          >
+            <ClipboardCopy className="size-4" />
+            Copy prompt
+          </Button>
+        </span>
         <AgentMenu
           variant="default"
           disabled={pins.length === 0 || !draft?.workspaceRoot}

@@ -260,7 +260,11 @@ const api = {
     stop: (workspaceId: string): Promise<void> => invoke('preview:stop', workspaceId),
     state: (workspaceId: string): Promise<PreviewState | null> => invoke('preview:state', workspaceId),
     onState: (cb: (p: { workspaceId: string; state: PreviewState }) => void): (() => void) =>
-      subscribe('preview:state', cb)
+      subscribe('preview:state', cb),
+    /** Serves one generated component on a free port and opens it in its own window. */
+    component: (input: { id: string; dir: string; file: string; title: string }): Promise<string> =>
+      invoke('component:preview', input),
+    componentStop: (id: string): Promise<void> => invoke('component:preview-stop', id)
   },
 
   library: {

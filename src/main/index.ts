@@ -16,6 +16,7 @@ import { registerAuditExportIpc } from './audit-export'
 import { registerSourceMapIpc } from './sourcemap'
 import { registerSimilarityIpc } from './similarity'
 import { registerVerifyIpc, stopAllPreviews } from './verify'
+import { registerComponentPreviewIpc, stopAllComponentPreviews } from './component-preview'
 import { killAllTerminals, registerTerminalIpc } from './terminals'
 import { registerAppContextMenu } from './context-menu'
 import { registerCuratorIpc } from './curator'
@@ -106,6 +107,7 @@ app.whenReady().then(() => {
   registerSourceMapIpc()
   registerSimilarityIpc()
   registerVerifyIpc()
+  registerComponentPreviewIpc()
   registerTerminalIpc()
   registerCuratorIpc()
   void reconcileJobs()
@@ -155,11 +157,13 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   stopAllPreviews()
+  stopAllComponentPreviews()
   killAllTerminals()
 })
 
 app.on('window-all-closed', () => {
   stopAllPreviews()
+  stopAllComponentPreviews()
   killAllTerminals()
   if (process.platform !== 'darwin') app.quit()
 })
