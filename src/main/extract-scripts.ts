@@ -174,9 +174,33 @@ export const SECTION_LIMIT = `const LIMIT = { nodes: 400, assets: 40, html: 6000
 /** A whole page is an order of magnitude more markup, and the outline matters far more. */
 export const PAGE_LIMIT = `const LIMIT = { nodes: 4000, assets: 120, html: 400000, headings: 40 }`
 
-export const SELECTOR_SCRIPT = `(() => new Promise((resolve) => {
+/**
+ * What "an element" means when picking one. Hovering a page hits whatever leaf is under the
+ * cursor — nearly always a `<span>` inside the button or the layout `<div>` wrapping it — so
+ * element mode climbs to the nearest of these instead of highlighting the raw hit target.
+ */
+export const PICKABLE = [
+  'button', 'a[href]', 'input', 'textarea', 'select', 'label', 'summary',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote', 'li',
+  'img', 'picture', 'video', 'svg', 'table', 'form', 'fieldset',
+  '[role="button"]', '[role="link"]', '[role="checkbox"]', '[role="switch"]', '[role="radio"]',
+  '[role="tab"]', '[role="menuitem"]', '[role="combobox"]', '[role="listbox"]',
+  '[class*="btn"]', '[class*="button"]', '[class*="badge"]', '[class*="chip"]',
+  '[class*="card"]', '[class*="input"]', '[class*="avatar"]', '[class*="tag"]'
+].join(',')
+
+/**
+ * The click-to-pick overlay. `section` mode highlights whatever is under the cursor, because a
+ * section is usually a wrapper. `element` mode only ever highlights a real control — a button,
+ * a heading, an input — and refuses to select the anonymous divs in between.
+ */
+export function selectorScript(mode: 'section' | 'element'): string {
+  const elementMode = mode === 'element'
+  return `(() => new Promise((resolve) => {
   ${SECTION_LIMIT}
   ${HELPERS}
+  const ELEMENT_MODE = ${elementMode}
+  const PICKABLE = ${JSON.stringify(PICKABLE)}
   const OLD = document.getElementById('__nisaba_pick__')
   if (OLD) OLD.remove()
 
@@ -187,7 +211,9 @@ export const SELECTOR_SCRIPT = `(() => new Promise((resolve) => {
   label.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483647;background:#7928db;color:#fff;font:600 11px/1.5 ui-monospace,monospace;padding:3px 7px;border-radius:5px;white-space:nowrap'
 
   const hint = document.createElement('div')
-  hint.innerHTML = 'Click to select  ·  <b>↑</b> parent  <b>↓</b> child  <b>←→</b> siblings  ·  <b>Esc</b> cancel'
+  hint.innerHTML = ELEMENT_MODE
+    ? 'Hover a button, heading, input or image  ·  <b>↑</b> wider  <b>↓</b> narrower  <b>←→</b> next  ·  <b>Esc</b> cancel'
+    : 'Click to select  ·  <b>↑</b> parent  <b>↓</b> child  <b>←→</b> siblings  ·  <b>Esc</b> cancel'
   hint.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#0d0d0f;color:#e6e6ea;border:1px solid #2a2a31;border-radius:9px;padding:8px 14px;font:500 13px system-ui;pointer-events:none'
 
   const host = document.createElement('div')
@@ -199,9 +225,38 @@ export const SELECTOR_SCRIPT = `(() => new Promise((resolve) => {
 
   const isOurs = (el) => !el || host.contains(el)
 
+  /** Big enough to be worth a screenshot — a 0×0 wrapper is not the thing the user aimed at. */
+  const solid = (el) => {
+    const r = el.getBoundingClientRect()
+    return r.width >= 8 && r.height >= 8
+  }
+
+  const matches = (el) => {
+    if (!el || el.nodeType !== 1 || isOurs(el)) return false
+    try { return el.matches(PICKABLE) && solid(el) } catch { return false }
+  }
+
+  /** In element mode a hit on a nested span resolves to the control that owns it. */
+  function resolve_(el) {
+    if (!ELEMENT_MODE) return isOurs(el) ? null : el
+    let node = el
+    for (let i = 0; node && node.nodeType === 1 && i < 10; i++) {
+      if (matches(node)) return node
+      node = node.parentElement
+    }
+    return null
+  }
+
   function paint(el) {
-    if (!el || isOurs(el)) return
+    if (!el) {
+      current = null
+      outline.style.opacity = '0'
+      label.style.opacity = '0'
+      return
+    }
     current = el
+    outline.style.opacity = '1'
+    label.style.opacity = '1'
     const r = el.getBoundingClientRect()
     outline.style.left = r.left + 'px'
     outline.style.top = r.top + 'px'
@@ -217,6 +272,30 @@ export const SELECTOR_SCRIPT = `(() => new Promise((resolve) => {
     label.style.top = (above ? r.top - 24 : r.bottom + 4) + 'px'
   }
 
+  /* ---- movement ---- */
+
+  const step = (from, dir) => {
+    if (!ELEMENT_MODE) return dir(from)
+    // Element mode only ever lands on something pickable, so keep walking until it does.
+    let node = dir(from)
+    for (let i = 0; node && i < 200; i++) {
+      if (matches(node)) return node
+      node = dir(node)
+    }
+    return null
+  }
+
+  const wider = (el) => {
+    let node = el.parentElement
+    if (!ELEMENT_MODE) return node
+    while (node && !matches(node)) node = node.parentElement
+    return node
+  }
+
+  const narrower = (el) => {
+    if (!ELEMENT_MODE) return el.firstElementChild
+    return [...el.querySelectorAll(PICKABLE)].find((c) => matches(c)) || null
+  }
 
   /* ---- interaction ---- */
 
@@ -228,7 +307,7 @@ export const SELECTOR_SCRIPT = `(() => new Promise((resolve) => {
     resolve(value)
   }
 
-  const onMove = (e) => paint(document.elementFromPoint(e.clientX, e.clientY))
+  const onMove = (e) => paint(resolve_(document.elementFromPoint(e.clientX, e.clientY)))
 
   const onClick = (e) => {
     e.preventDefault(); e.stopPropagation()
@@ -236,14 +315,14 @@ export const SELECTOR_SCRIPT = `(() => new Promise((resolve) => {
   }
 
   const onKey = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return finish(null) }
     if (!current) return
     const map = {
-      Escape: () => finish(null),
       Enter: () => finish(collect(current)),
-      ArrowUp: () => current.parentElement && paint(current.parentElement),
-      ArrowDown: () => current.firstElementChild && paint(current.firstElementChild),
-      ArrowLeft: () => current.previousElementSibling && paint(current.previousElementSibling),
-      ArrowRight: () => current.nextElementSibling && paint(current.nextElementSibling)
+      ArrowUp: () => { const n = wider(current); if (n) paint(n) },
+      ArrowDown: () => { const n = narrower(current); if (n) paint(n) },
+      ArrowLeft: () => { const n = step(current, (x) => x.previousElementSibling); if (n) paint(n) },
+      ArrowRight: () => { const n = step(current, (x) => x.nextElementSibling); if (n) paint(n) }
     }
     if (map[e.key]) { e.preventDefault(); e.stopPropagation(); map[e.key]() }
   }
@@ -252,6 +331,10 @@ export const SELECTOR_SCRIPT = `(() => new Promise((resolve) => {
   document.addEventListener('click', onClick, true)
   document.addEventListener('keydown', onKey, true)
 }))()`
+}
+
+export const SELECTOR_SCRIPT = selectorScript('section')
+export const ELEMENT_SCRIPT = selectorScript('element')
 
 /**
  * The whole document as one extraction. Scroll position is irrelevant — `collect` measures

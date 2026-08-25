@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import {
   ArrowDownUp,
   Check,
+  Info,
   LayoutGrid,
   ListFilter,
   Rows3,
@@ -39,6 +40,7 @@ export function LibraryFrame<T extends { createdAt: number }>({
   groupBy,
   tagsOf,
   nameOf,
+  note,
   children
 }: {
   icon: LucideIcon
@@ -57,6 +59,8 @@ export function LibraryFrame<T extends { createdAt: number }>({
   tagsOf?: (item: T) => string[]
   /** Enables sorting by name. */
   nameOf?: (item: T) => string
+  /** One line along the bottom saying where these records come from. */
+  note?: React.ReactNode
   children: (shown: T[], view: View) => React.ReactNode
 }): React.JSX.Element {
   const [view, setView] = useState<View>(views[0])
@@ -271,7 +275,29 @@ export function LibraryFrame<T extends { createdAt: number }>({
           )}
         </ScrollArea>
       )}
+
+      {note && <StatusBar>{note}</StatusBar>}
     </div>
+  )
+}
+
+/**
+ * The quiet line along the foot of a library screen. It answers "where did these come from?"
+ * without spending a card, a banner or a paragraph on it.
+ */
+export function StatusBar({
+  children,
+  actions
+}: {
+  children: React.ReactNode
+  actions?: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <footer className="flex h-9 shrink-0 items-center gap-3 border-t border-border bg-sidebar/60 px-5">
+      <Info className="size-3 shrink-0 text-muted-foreground/60" />
+      <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{children}</p>
+      {actions}
+    </footer>
   )
 }
 

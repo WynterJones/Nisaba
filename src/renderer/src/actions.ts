@@ -48,7 +48,10 @@ export async function startExtract(): Promise<void> {
   openInspector('inspect')
   try {
     const draft = await window.api.extract.select()
-    if (draft) setSelection(draft)
+    if (!draft) return
+    setSelection(draft)
+    // One button, one flow: a picked section lands on the tab that can actually build it.
+    openInspector('ai')
   } catch (error) {
     fail(error)
   } finally {
@@ -64,7 +67,7 @@ export async function captureElement(): Promise<void> {
   const { setPicking } = useApp.getState()
   setPicking(true)
   try {
-    const draft = await window.api.extract.select()
+    const draft = await window.api.extract.select('element')
     if (!draft) return
     const record = await window.api.capture.rect(draft.rect)
     if (record) {

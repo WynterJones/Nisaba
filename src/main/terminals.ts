@@ -62,6 +62,10 @@ export type OpenSpec = {
   jobId?: string | null
   /** Shown in the UI instead of the raw argv, which may embed a whole prompt. */
   display?: string
+  /** Rewrites raw process output before anyone sees it. Stateful across chunks. */
+  transform?: (chunk: string) => string
+  /** Written to the terminal before the process starts, so a slow agent still says something. */
+  banner?: string
   cols?: number
   rows?: number
   onData?: (chunk: string) => void
@@ -94,6 +98,13 @@ export function openTerminal(spec: OpenSpec): TerminalSummary {
     spec.onData?.(chunk)
   }
 
+  // A transform may swallow a chunk entirely (hook chatter, rate-limit notices); emitting
+  // nothing is correct, so guard rather than broadcasting empty frames.
+  const emit = (chunk: string): void => {
+    const text = spec.transform ? spec.transform(chunk) : chunk
+    if (text) append(text)
+  }
+
   const finish = (exitCode: number, signal?: number): void => {
     if (session.exitCode !== null) return
     session.exitCode = exitCode
@@ -101,6 +112,8 @@ export function openTerminal(spec: OpenSpec): TerminalSummary {
     broadcast('terminal:exit', { id, exitCode })
     spec.onExit?.(exitCode, signal)
   }
+
+  if (spec.banner) append(spec.banner)
 
   try {
     const pty = ptySpawn(spec.file, args, {
@@ -111,7 +124,7 @@ export function openTerminal(spec: OpenSpec): TerminalSummary {
       rows: spec.rows ?? 30
     })
     session.pty = pty
-    pty.onData(append)
+    pty.onData(emit)
     pty.onExit(({ exitCode, signal }) => finish(exitCode, signal))
   } catch (error) {
     // A missing binary throws here rather than exiting; report it in the terminal itself.

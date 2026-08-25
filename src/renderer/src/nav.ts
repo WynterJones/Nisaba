@@ -36,7 +36,7 @@ export function isFlyout(entry: NavEntry): entry is NavFlyout {
 
 export const KNOWLEDGE: NavFlyout = {
   key: 'knowledge',
-  label: 'Knowledge',
+  label: 'Websites',
   icon: BookMarked,
   items: [
     {

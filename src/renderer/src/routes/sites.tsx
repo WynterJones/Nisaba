@@ -17,6 +17,7 @@ export default function Sites(): React.JSX.Element {
       emptyTitle="No sites yet"
       emptyBlurb="Every domain you capture from gets a record here, with everything you have taken from it."
       nameOf={(s) => s.host}
+      note="These are the sites your captures, sections and elements came from — Nisaba adds one record per domain as you browse."
     >
       {(shown) => (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3 p-5">

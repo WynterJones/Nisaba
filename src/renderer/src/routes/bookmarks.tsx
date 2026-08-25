@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Bookmark, ExternalLink, Globe, ListPlus, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { StatusBar } from '@/components/library/frame'
 import { parseUrlList, useApp, useBookmarks } from '@/store'
 import { Button } from '@/components/ui/button'
 import {
@@ -181,6 +182,11 @@ export default function Bookmarks(): React.JSX.Element {
           </ul>
         </ScrollArea>
       )}
+
+      <StatusBar>
+        Pages you saved while browsing, plus anything you pasted in — they stay on this machine
+        and open straight into a Nisaba tab.
+      </StatusBar>
     </div>
   )
 }

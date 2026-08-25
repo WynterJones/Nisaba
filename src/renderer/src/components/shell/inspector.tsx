@@ -8,7 +8,6 @@ import {
   MousePointerClick,
   Play,
   ShieldAlert,
-  Sparkles,
   Terminal,
   X
 } from 'lucide-react'
@@ -22,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CodeView } from '@/components/ui/code-view'
 import type { AgentInstallation, SectionDraft } from '../../../../preload'
 
 function Field({
@@ -224,9 +224,9 @@ function InspectBody({ selection }: { selection: SectionDraft }): React.JSX.Elem
       )}
 
       <Field label={`Sanitized HTML (${(selection.html.length / 1024).toFixed(1)} KB)`}>
-        <pre className="max-h-40 overflow-auto rounded-lg border border-border bg-secondary/30 p-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
-          {selection.html.slice(0, 2000)}
-        </pre>
+        <div className="h-40 overflow-hidden rounded-lg border border-border bg-[#08080a]">
+          <CodeView value={selection.html.slice(0, 2000)} filename="section.html" />
+        </div>
       </Field>
     </div>
   )
@@ -449,9 +449,9 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
             </Field>
 
             <Field label="Resolved instruction">
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-secondary/30 p-2.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
-                {preview.prompt}
-              </pre>
+              <div className="h-56 overflow-hidden rounded-lg border border-border bg-[#08080a]">
+                <CodeView value={preview.prompt} filename="prompt.md" numbered={false} wrap />
+              </div>
             </Field>
           </>
         )}
@@ -465,7 +465,7 @@ function AiBody({ selection }: { selection: SectionDraft | null }): React.JSX.El
 
         <Button disabled={Boolean(blocker) || starting} onClick={() => void run()}>
           {starting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-          {kind === 'template' ? 'Build template' : 'Run job'}
+          {kind === 'template' ? 'Convert to a template' : 'Convert to a component'}
         </Button>
       </div>
     </ScrollArea>
@@ -535,17 +535,6 @@ export function Inspector(): React.JSX.Element {
           </TabsContent>
         </div>
       </Tabs>
-
-      <div className="shrink-0 border-t border-border p-3">
-        <Button
-          className="w-full"
-          disabled={!selection}
-          onClick={() => setInspectorTab('ai')}
-        >
-          <Sparkles className="size-4" />
-          Convert to a component
-        </Button>
-      </div>
     </aside>
   )
 }

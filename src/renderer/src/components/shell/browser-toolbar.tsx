@@ -3,13 +3,16 @@ import {
   ArrowLeft,
   ArrowRight,
   Camera,
+  Check,
   ChevronDown,
   Crop,
   ExternalLink,
   Layers,
   LayoutTemplate,
   Loader2,
+  Maximize2,
   Monitor,
+  MousePointerClick,
   Smartphone,
   Tablet,
   Lock,
@@ -18,7 +21,6 @@ import {
   Blocks,
   Palette,
   PenLine,
-  Sparkles,
   SquareDashedMousePointer,
   TriangleAlert,
   X
@@ -148,14 +150,24 @@ const toolClass = (active: boolean): string =>
 
 export function BrowserToolbar(): React.JSX.Element {
   const tab = useActiveTab()
-  const { picking, selection, inspectorOpen, inspectorTab, toggleInspector, openInspector, setOverlay } =
-    useApp()
+  const { picking, inspectorOpen, toggleInspector, setOverlay } = useApp()
+  const viewportWidth = useApp((s) => s.viewportWidth)
+  const setViewportWidth = useApp((s) => s.setViewportWidth)
+  const DeviceIcon = PRESETS.find((p) => p.width === viewportWidth)?.icon ?? Maximize2
   const [candidates, setCandidates] = useState<ElementCandidate[] | null>(null)
   const audit = useAudit()
   const [scanning, setScanning] = useState(false)
   const disabled = !tab
 
   const openMenu = (open: boolean): void => setOverlay(open)
+
+  /**
+   * A menu is open with the page hidden behind it. Anything that hands control to the live
+   * page has to wait for the native view to come back, or the user is picking on a blank area.
+   */
+  const afterMenu = (fn: () => void | Promise<void>) => (): void => {
+    setTimeout(() => void fn(), 150)
+  }
 
   const scan = async (): Promise<void> => {
     setScanning(true)
@@ -257,15 +269,6 @@ export function BrowserToolbar(): React.JSX.Element {
               <DropdownMenuShortcut>⌘⇧4</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void captureElement()}>
-              <SquareDashedMousePointer />
-              Pick an element
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void captureWholePage()}>
-              <LayoutTemplate />
-              Whole page as a template
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuLabel>Analyse</DropdownMenuLabel>
             <DropdownMenuItem onSelect={() => void scan()}>
               <Blocks />
@@ -278,19 +281,81 @@ export function BrowserToolbar(): React.JSX.Element {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <button
-          disabled={disabled}
-          onClick={() => (picking ? void cancelExtract() : void startExtract())}
-          title={picking ? 'Cancel selection' : 'Select a section on the page'}
-          className={toolClass(picking)}
-        >
-          {picking ? (
+        {/* One menu for everything you pull off a page, smallest to largest. */}
+        {picking ? (
+          <button
+            onClick={() => void cancelExtract()}
+            title="Cancel selection"
+            className={toolClass(true)}
+          >
             <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <SquareDashedMousePointer className="size-4" />
-          )}
-          {picking ? 'Picking…' : 'Extract'}
-        </button>
+            Picking…
+          </button>
+        ) : (
+          <DropdownMenu onOpenChange={openMenu}>
+            <DropdownMenuTrigger asChild>
+              <button
+                disabled={disabled}
+                className={toolClass(false)}
+                title="Take an element, a section or the whole page off this page"
+              >
+                <SquareDashedMousePointer className="size-4" />
+                Extract
+                <ChevronDown className="size-3 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>Extract</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={afterMenu(() => captureElement())}>
+                <MousePointerClick />
+                <span className="flex-1">Element</span>
+                <span className="text-[10px] text-muted-foreground">to Captures</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={afterMenu(() => startExtract())}>
+                <Blocks />
+                <span className="flex-1">Component</span>
+                <span className="text-[10px] text-muted-foreground">a section</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={afterMenu(() => captureWholePage())}>
+                <LayoutTemplate />
+                <span className="flex-1">Template</span>
+                <span className="text-[10px] text-muted-foreground">whole page</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Lays the page out at a device width for testing. The native view is resized to
+            match, so media queries and touch layouts behave as they would in a real browser. */}
+        <DropdownMenu onOpenChange={openMenu}>
+          <DropdownMenuTrigger asChild>
+            <button
+              disabled={disabled}
+              className={toolClass(viewportWidth !== null)}
+              title="Lay the page out at a device width"
+            >
+              <DeviceIcon className="size-4" />
+              {viewportWidth ? `${viewportWidth}px` : 'Fit'}
+              <ChevronDown className="size-3 opacity-60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel>Viewport</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => setViewportWidth(null)}>
+              <Maximize2 />
+              <span className="flex-1">Fit</span>
+              <Check className={cn('size-3.5', viewportWidth !== null && 'opacity-0')} />
+            </DropdownMenuItem>
+            {PRESETS.map(({ id, label, width, icon: PresetIcon }) => (
+              <DropdownMenuItem key={id} onSelect={() => setViewportWidth(width)}>
+                <PresetIcon />
+                <span className="flex-1">{label}</span>
+                <span className="text-xs text-muted-foreground">{width}px</span>
+                <Check className={cn('size-3.5', viewportWidth !== width && 'opacity-0')} />
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <button
           disabled={disabled}
@@ -304,16 +369,6 @@ export function BrowserToolbar(): React.JSX.Element {
         >
           <PenLine className="size-4" />
           {audit.active ? `Auditing · ${audit.draft?.pins.length ?? 0}` : 'Audit'}
-        </button>
-
-        <button
-          disabled={disabled || !selection}
-          onClick={() => openInspector('ai')}
-          title={selection ? 'Convert this selection to code' : 'Extract a section first'}
-          className={toolClass(inspectorOpen && inspectorTab === 'ai')}
-        >
-          <Sparkles className="size-4" />
-          Convert
         </button>
       </div>
 

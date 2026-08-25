@@ -108,11 +108,22 @@ const api = {
   },
 
   extract: {
-    select: (): Promise<SectionDraft | null> => invoke('extract:select'),
+    select: (mode?: 'section' | 'element'): Promise<SectionDraft | null> =>
+      invoke('extract:select', mode ?? 'section'),
     /** The whole page as one template source — same shape as a section, rooted at <body>. */
     page: (): Promise<SectionDraft | null> => invoke('extract:page'),
     cancel: (): Promise<void> => invoke('extract:cancel'),
     save: (draft: SectionDraft): Promise<SectionRecord> => invoke('extract:save', draft)
+  },
+
+  resources: {
+    /**
+     * Opens the user's agent in a terminal with the resource list in front of it. It asks what
+     * they are building, finds links, and appends them — Nisaba imports as the file changes.
+     */
+    curate: (): Promise<TerminalSummary> => invoke('resources:curate'),
+    /** Fires each time the agent's writes land in the library. */
+    onAdded: (cb: (added: number) => void): (() => void) => subscribe('resources:added', cb)
   },
 
   design: {
@@ -278,7 +289,10 @@ const api = {
   update: {
     state: (): Promise<UpdateState> => invoke('update:state'),
     check: (): Promise<UpdateState> => invoke('update:check'),
-    install: (): Promise<void> => invoke('update:install'),
+    /** Fetches the update; safe to call twice — the second call joins the first. */
+    download: (): Promise<UpdateState> => invoke('update:download'),
+    /** Restarts into the version already downloaded. */
+    install: (): Promise<UpdateState> => invoke('update:install'),
     onState: (cb: (state: UpdateState) => void): (() => void) => subscribe('update:state', cb)
   },
 

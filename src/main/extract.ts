@@ -2,7 +2,7 @@ import { ipcMain } from 'electron'
 import { activeView } from './browser'
 import { captureRect, capturePageShot, pageMeta } from './capture'
 import { addRecord, hashImage, isPageSource, newId, writeImage, type SectionRecord } from './library'
-import { CANCEL_SCRIPT, PAGE_SCRIPT, SELECTOR_SCRIPT } from './extract-scripts'
+import { CANCEL_SCRIPT, ELEMENT_SCRIPT, PAGE_SCRIPT, SELECTOR_SCRIPT } from './extract-scripts'
 
 export type SectionDraft = Omit<SectionRecord, 'id' | 'file' | 'createdAt'> & {
   preview: string
@@ -10,11 +10,13 @@ export type SectionDraft = Omit<SectionRecord, 'id' | 'file' | 'createdAt'> & {
 }
 
 export function registerExtractIpc(): void {
-  ipcMain.handle('extract:select', async (): Promise<SectionDraft | null> => {
+  ipcMain.handle('extract:select', async (_e, mode: 'section' | 'element' = 'section'): Promise<SectionDraft | null> => {
     const view = activeView()
     if (!view) throw new Error('Open a page before extracting')
 
-    const picked = (await view.webContents.executeJavaScript(SELECTOR_SCRIPT, true)) as Omit<
+    // Element mode refuses the anonymous divs between controls; section mode takes anything.
+    const script = mode === 'element' ? ELEMENT_SCRIPT : SELECTOR_SCRIPT
+    const picked = (await view.webContents.executeJavaScript(script, true)) as Omit<
       SectionDraft,
       'preview' | 'url' | 'title' | 'host' | 'name'
     > | null

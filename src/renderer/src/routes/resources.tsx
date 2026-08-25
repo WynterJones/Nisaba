@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { ExternalLink, Library, ListPlus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ExternalLink, Library, ListPlus, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { classifyResource } from '@/actions'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { parseUrlList, useLibrary } from '@/store'
+import { useTerminals } from '@/terminals'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -95,6 +96,50 @@ function AddDialog(): React.JSX.Element {
   )
 }
 
+/**
+ * Hands the list to the user's agent CLI in an interactive terminal. It asks what they are
+ * building, goes and finds links, and appends them to the file Nisaba is watching — so
+ * resources appear in this list while the conversation is still going.
+ */
+function BuildWithAI(): React.JSX.Element {
+  const refresh = useLibrary((s) => s.refresh)
+  const show = useTerminals((s) => s.show)
+  const [starting, setStarting] = useState(false)
+
+  useEffect(
+    () =>
+      window.api.resources.onAdded((added) => {
+        void refresh()
+        toast.success(`Added ${added} resource${added === 1 ? '' : 's'}`, {
+          description: 'Found by your agent.'
+        })
+      }),
+    [refresh]
+  )
+
+  const start = async (): Promise<void> => {
+    setStarting(true)
+    try {
+      const terminal = await window.api.resources.curate()
+      show(terminal.id)
+      toast.info('Your agent is reading the list', {
+        description: 'Tell it what you are building in the terminal dock.'
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  return (
+    <Button size="sm" variant="secondary" disabled={starting} onClick={() => void start()}>
+      <Sparkles className="size-4" />
+      Build with AI
+    </Button>
+  )
+}
+
 export default function Resources(): React.JSX.Element {
   const { resources, remove } = useLibrary()
   const [type, setType] = useState<string | null>(null)
@@ -110,6 +155,7 @@ export default function Resources(): React.JSX.Element {
       search={(r) => `${r.name} ${r.url} ${r.type}`}
       emptyTitle="No resources yet"
       emptyBlurb="Icon sets, UI kits, font collections and repositories worth keeping close. Paste a list and Nisaba sorts them by kind."
+      note="Links you keep for building — icon sets, UI kits, fonts and repositories. Paste your own, or let an agent go and find them."
       actions={
         <>
           {types.length > 0 && (
@@ -141,6 +187,7 @@ export default function Resources(): React.JSX.Element {
               ))}
             </div>
           )}
+          <BuildWithAI />
           <AddDialog />
         </>
       }

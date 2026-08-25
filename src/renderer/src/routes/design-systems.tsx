@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CodeView } from '@/components/ui/code-view'
 import type { DesignSystemRecord } from '../../../preload'
 
 function TokenList({ label, values }: { label: string; values: string[] }): React.JSX.Element {
@@ -232,11 +233,9 @@ function Detail({
           </TabsContent>
 
           <TabsContent value="md">
-            <ScrollArea className="h-[52vh]">
-              <pre className="whitespace-pre-wrap rounded-lg border border-border bg-secondary/30 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-                {designMd}
-              </pre>
-            </ScrollArea>
+            <div className="h-[52vh] overflow-hidden rounded-lg border border-border bg-[#08080a]">
+              <CodeView value={designMd} filename="DESIGN.md" />
+            </div>
           </TabsContent>
         </Tabs>
 

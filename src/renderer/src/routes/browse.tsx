@@ -7,6 +7,7 @@ import { Inspector } from '@/components/shell/inspector'
 import { AuditPanel } from '@/components/shell/audit-panel'
 import { useAudit } from '@/audit'
 import { useActiveTab, useApp } from '@/store'
+import { cn } from '@/lib/utils'
 
 /**
  * Hosts the native WebContentsView. Remote pages are composited by the main process on top of
@@ -15,6 +16,7 @@ import { useActiveTab, useApp } from '@/store'
 function ViewportHost(): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const hasTab = useApp((s) => s.activeTabId !== null)
+  const width = useApp((s) => s.viewportWidth)
 
   useEffect(() => {
     const el = ref.current
@@ -61,7 +63,20 @@ function ViewportHost(): React.JSX.Element {
     if (activeTabId) void window.api.browser.activate(activeTabId)
   }, [hasTab])
 
-  return <div ref={ref} className="min-h-0 flex-1 bg-background" />
+  // Narrowing this element is the whole device mode: the ResizeObserver above already pushes
+  // the new rect to the native view, and the page relays out as a real browser would.
+  return (
+    <div className="flex min-h-0 flex-1 justify-center overflow-hidden bg-secondary/30">
+      <div
+        ref={ref}
+        style={width ? { width, maxWidth: '100%' } : undefined}
+        className={cn(
+          'min-h-0 min-w-0 flex-1 bg-background',
+          width && 'flex-none border-x border-border'
+        )}
+      />
+    </div>
+  )
 }
 
 function StartPage(): React.JSX.Element {

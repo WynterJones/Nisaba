@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CodeView } from '@/components/ui/code-view'
 import type { ElementRecord } from '../../../../preload'
 
 /**
@@ -149,23 +150,26 @@ export function ElementViewer({
             </TabsList>
 
             <TabsContent value="css" className="m-0">
-              <ScrollArea className="h-[38vh] rounded-lg border border-border bg-[#08080a]">
-                <pre className="whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-                  {css}
-                </pre>
-              </ScrollArea>
+              <div className="h-[38vh] overflow-hidden rounded-lg border border-border bg-[#08080a]">
+                <CodeView value={css} filename="element.css" />
+              </div>
             </TabsContent>
 
             <TabsContent value="tailwind" className="m-0">
-              <ScrollArea className="h-[38vh] rounded-lg border border-border bg-[#08080a]">
-                <pre className="whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-                  {tw || 'Nothing worth translating.'}
-                </pre>
-                <p className="px-3 pb-3 text-[10px] text-muted-foreground/70">
+              <div className="flex h-[38vh] flex-col overflow-hidden rounded-lg border border-border bg-[#08080a]">
+                {/* A utility string is one long line, not source — wrap it and drop the gutter. */}
+                <div className="min-h-0 flex-1">
+                  <CodeView
+                    value={tw || 'Nothing worth translating.'}
+                    numbered={false}
+                    wrap
+                  />
+                </div>
+                <p className="shrink-0 px-3 pb-3 text-[10px] text-muted-foreground/70">
                   Arbitrary values, because the original utility classes cannot be recovered from
                   computed styles — treat this as a starting point.
                 </p>
-              </ScrollArea>
+              </div>
             </TabsContent>
 
             <TabsContent value="props" className="m-0">

@@ -17,6 +17,8 @@ import { registerSourceMapIpc } from './sourcemap'
 import { registerSimilarityIpc } from './similarity'
 import { registerVerifyIpc, stopAllPreviews } from './verify'
 import { killAllTerminals, registerTerminalIpc } from './terminals'
+import { registerAppContextMenu } from './context-menu'
+import { registerCuratorIpc } from './curator'
 import { writeFile } from 'fs/promises'
 import {
   addRecord,
@@ -84,6 +86,7 @@ function createWindow(): BrowserWindow {
   }
 
   registerBrowserIpc(win)
+  registerAppContextMenu(win)
   return win
 }
 
@@ -104,6 +107,7 @@ app.whenReady().then(() => {
   registerSimilarityIpc()
   registerVerifyIpc()
   registerTerminalIpc()
+  registerCuratorIpc()
   void reconcileJobs()
 
   ipcMain.handle('library:read', () => readIndex())

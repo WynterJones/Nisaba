@@ -5,12 +5,13 @@ import assert from 'node:assert/strict'
 import vm from 'node:vm'
 import {
   CANCEL_SCRIPT,
+  ELEMENT_SCRIPT,
   PAGE_SCRIPT,
   SELECTOR_SCRIPT
 } from '../src/main/extract-scripts.ts'
 import { PROFILE_SCRIPT } from '../src/main/design-script.ts'
 
-const SCRIPTS = { SELECTOR_SCRIPT, PAGE_SCRIPT, CANCEL_SCRIPT, PROFILE_SCRIPT }
+const SCRIPTS = { SELECTOR_SCRIPT, ELEMENT_SCRIPT, PAGE_SCRIPT, CANCEL_SCRIPT, PROFILE_SCRIPT }
 
 for (const [name, source] of Object.entries(SCRIPTS)) {
   try {
@@ -32,6 +33,11 @@ for (const fn of ['cssPath', 'sanitized', 'palette', 'tech', 'collect']) {
   assert.ok(SELECTOR_SCRIPT.includes(`function ${fn}(`), `selector script lost ${fn}`)
   assert.ok(PAGE_SCRIPT.includes(`function ${fn}(`), `page script lost ${fn}`)
 }
+
+// Element mode is the whole point of the second script: it must gate on the pickable list.
+assert.match(ELEMENT_SCRIPT, /const ELEMENT_MODE = true/, 'element script must run in element mode')
+assert.match(SELECTOR_SCRIPT, /const ELEMENT_MODE = false/, 'section script must not gate elements')
+assert.ok(ELEMENT_SCRIPT.includes('role=\\"button\\"'), 'element script lost the pickable list')
 
 // The profiler must sample real controls, not just count computed styles.
 for (const needle of ['buttons', 'inputs', 'selects', 'cards', 'surface']) {

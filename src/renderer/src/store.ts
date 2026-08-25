@@ -58,6 +58,9 @@ type AppState = {
   /** True only while the Browse route is showing its viewport host. */
   viewportMounted: boolean
   setViewportMounted: (mounted: boolean) => void
+  /** Device width the browsed page is laid out at, in px. Null fills the pane. */
+  viewportWidth: number | null
+  setViewportWidth: (width: number | null) => void
   /** Native views paint above all renderer HTML, so modals must hide them while open. */
   setOverlay: (open: boolean) => void
 }
@@ -73,6 +76,27 @@ const blankTab = (id: string, url: string): TabState => ({
   error: null
 })
 
+/** Trailing slashes and in-page anchors are the same document; anything else is not. */
+function sameDocument(a: string, b: string): boolean {
+  const strip = (url: string): string => url.split('#')[0].replace(/\/$/, '')
+  return strip(a) === strip(b)
+}
+
+/**
+ * A selection describes a region of one specific page. Once the active tab has navigated
+ * somewhere else — or been closed, or swapped for another tab — the inspector would be
+ * showing markup that is no longer on screen, so drop it instead of letting it go stale.
+ */
+function liveSelection(
+  selection: SectionDraft | null,
+  tabs: TabState[],
+  activeTabId: string | null
+): SectionDraft | null {
+  if (!selection) return null
+  const active = tabs.find((t) => t.id === activeTabId)
+  return active && sameDocument(active.url, selection.url) ? selection : null
+}
+
 export const useApp = create<AppState>((set, get) => ({
   tabs: [],
   activeTabId: null,
@@ -85,6 +109,7 @@ export const useApp = create<AppState>((set, get) => ({
   sidebarCollapsed: false,
   jobsOpen: false,
   viewportMounted: false,
+  viewportWidth: null,
 
   newTab: (url = '', background = false) => {
     const id = nextId()
@@ -100,21 +125,28 @@ export const useApp = create<AppState>((set, get) => ({
 
   closeTab: (id) => {
     void window.api.browser.close(id)
-    const { tabs, activeTabId } = get()
+    const { tabs, activeTabId, selection } = get()
     const remaining = tabs.filter((t) => t.id !== id)
     const nextActive =
       activeTabId === id ? (remaining[remaining.length - 1]?.id ?? null) : activeTabId
-    set({ tabs: remaining, activeTabId: nextActive })
+    set({
+      tabs: remaining,
+      activeTabId: nextActive,
+      selection: liveSelection(selection, remaining, nextActive)
+    })
     if (nextActive) void window.api.browser.activate(nextActive)
   },
 
   activateTab: (id) => {
-    set({ activeTabId: id })
+    set((s) => ({ activeTabId: id, selection: liveSelection(s.selection, s.tabs, id) }))
     void window.api.browser.activate(id)
   },
 
   patchTab: (patch) =>
-    set((s) => ({ tabs: s.tabs.map((t) => (t.id === patch.id ? { ...t, ...patch } : t)) })),
+    set((s) => {
+      const tabs = s.tabs.map((t) => (t.id === patch.id ? { ...t, ...patch } : t))
+      return { tabs, selection: liveSelection(s.selection, tabs, s.activeTabId) }
+    }),
 
   setTool: (tool) => set((s) => ({ tool: s.tool === tool ? null : tool })),
   setInspectorTab: (inspectorTab) => set({ inspectorTab }),
@@ -126,6 +158,7 @@ export const useApp = create<AppState>((set, get) => ({
   setJobsOpen: (jobsOpen) => set({ jobsOpen }),
 
   setViewportMounted: (viewportMounted) => set({ viewportMounted }),
+  setViewportWidth: (viewportWidth) => set({ viewportWidth }),
 
   setOverlay: (open) => {
     const { activeTabId, viewportMounted } = get()

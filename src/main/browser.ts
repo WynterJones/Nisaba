@@ -1,4 +1,5 @@
 import { BrowserWindow, WebContentsView, Menu, clipboard, shell, ipcMain, session } from 'electron'
+import { saveImageItem } from './context-menu'
 
 export type TabState = {
   id: string
@@ -61,6 +62,7 @@ function pageMenu(
     items.push(
       { label: 'Open Image in New Tab', click: () => openTab(win, srcURL, true) },
       { label: 'Copy Image', click: () => wc.copyImageAt(params.x, params.y) },
+      saveImageItem(wc, params),
       { label: 'Copy Image Address', click: () => clipboard.writeText(srcURL) },
       { type: 'separator' }
     )

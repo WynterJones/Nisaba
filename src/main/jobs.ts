@@ -17,6 +17,7 @@ import {
 } from './library'
 import { isInside } from './workspaces'
 import { killTerminal, openTerminal } from './terminals'
+import { renderClaudeStream } from './agent-stream'
 
 /** job id → terminal id, so a cancel can find the PTY that is running it. */
 const running = new Map<string, string>()
@@ -106,7 +107,7 @@ export function resolvePrompt(input: {
     '',
     `## Output`,
     profile.brief,
-    'Keep it self-contained and readable. Add a short comment at the top naming the source URL.'
+    'Keep it self-contained and readable. Do not add header comments about where this came from.'
   ].join('\n')
 
   const sources = input.sources
@@ -199,12 +200,26 @@ export function buildInvocation(
   agent: 'claude' | 'codex',
   binary: string,
   prompt: string
-): { file: string; args: string[]; display: string } {
+): { file: string; args: string[]; display: string; transform?: (chunk: string) => string } {
   // Version-tolerant, non-interactive invocations. The resolved command is always shown
   // to the user before the first write-enabled run.
   const spec =
     agent === 'claude'
-      ? { file: binary, args: ['--print', '--permission-mode', 'acceptEdits', prompt] }
+      ? {
+          file: binary,
+          // Plain `--print` says nothing until the whole run finishes, which on a long job
+          // leaves the terminal looking dead for minutes. Stream the events and render them.
+          args: [
+            '--print',
+            '--output-format',
+            'stream-json',
+            '--verbose',
+            '--permission-mode',
+            'acceptEdits',
+            prompt
+          ],
+          transform: renderClaudeStream()
+        }
       : { file: binary, args: ['exec', '--full-auto', prompt] }
 
   return {
@@ -326,6 +341,7 @@ export function registerJobIpc(): void {
         file: invocation.file,
         args: invocation.args,
         display: invocation.display,
+        transform: invocation.transform,
         env: { NISABA_JOB: id },
         jobId: id,
         onData: (chunk) => push('stdout', chunk),

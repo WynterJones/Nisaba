@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CodeView } from '@/components/ui/code-view'
 import type { JobRecord } from '../../../preload'
 
 export const STATUS_ICON: Record<JobRecord['status'], typeof CheckCircle2> = {
@@ -60,8 +61,12 @@ export function useLiveLog(job: JobRecord | null): string {
 function JobDetail({ job, onClose }: { job: JobRecord; onClose: () => void }): React.JSX.Element {
   const log = useLiveLog(job)
   const bottom = useRef<HTMLDivElement>(null)
-  const components = useLibrary((s) => [...s.components, ...s.templates])
-  const produced = components.find((c) => c.jobId === job.id)
+  // Two selectors, not one that spreads: a selector returning a fresh array every call makes
+  // zustand's snapshot never compare equal, which loops React until it tears the tree down.
+  const components = useLibrary((s) => s.components)
+  const templates = useLibrary((s) => s.templates)
+  const produced =
+    components.find((c) => c.jobId === job.id) ?? templates.find((t) => t.jobId === job.id)
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end' })
@@ -94,11 +99,9 @@ function JobDetail({ job, onClose }: { job: JobRecord; onClose: () => void }): R
           </TabsContent>
 
           <TabsContent value="prompt">
-            <ScrollArea className="h-[52vh] rounded-lg border border-border bg-secondary/30">
-              <pre className="whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-                {job.prompt}
-              </pre>
-            </ScrollArea>
+            <div className="h-[52vh] overflow-hidden rounded-lg border border-border bg-[#08080a]">
+              <CodeView value={job.prompt} filename="prompt.md" numbered={false} wrap />
+            </div>
           </TabsContent>
 
           <TabsContent value="files">

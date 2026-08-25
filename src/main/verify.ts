@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow } from 'electron'
 import { spawn, type ChildProcess } from 'child_process'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
+import { SEARCH_PATHS } from './agents'
 
 export type Check = {
   label: string
@@ -67,13 +68,27 @@ export async function suggestPreview(root: string): Promise<string | null> {
 function run(
   command: string,
   cwd: string,
-  onData: (chunk: string) => void
+  onData: (chunk: string) => void,
+  extraEnv: Record<string, string> = {}
 ): { child: ChildProcess; done: Promise<number | null> } {
   // Commands come from the user's own package.json or their own typing, and run in their
   // workspace — the shell is the point, not a hazard being introduced here.
-  const child = spawn(command, { cwd, shell: true, env: { ...process.env, CI: '1', FORCE_COLOR: '0' } })
+  const child = spawn(command, {
+    cwd,
+    shell: true,
+    env: {
+      ...process.env,
+      // A packaged app inherits launchd's PATH, where node and npm do not exist. Same fix as
+      // the PTY module: prepend the places these tools are actually installed.
+      PATH: `${SEARCH_PATHS.join(':')}:${process.env.PATH ?? ''}`,
+      FORCE_COLOR: '0',
+      ...extraEnv
+    }
+  })
   child.stdout?.on('data', (c: Buffer) => onData(c.toString()))
   child.stderr?.on('data', (c: Buffer) => onData(c.toString()))
+  // A shell that cannot even start is still a close; without this the promise never settles.
+  child.on('error', (error) => onData(`\n${error.message}\n`))
   const done = new Promise<number | null>((resolve) => child.on('close', resolve))
   return { child, done }
 }
@@ -97,10 +112,15 @@ export function registerVerifyIpc(): void {
         broadcast('verify:progress', { componentId: input.componentId, checks: results })
 
         const started = Date.now()
-        const { done } = run(check.command, input.root, (chunk) => {
-          check.output = (check.output + chunk).slice(-20000)
-          broadcast('verify:progress', { componentId: input.componentId, checks: results })
-        })
+        const { done } = run(
+          check.command,
+          input.root,
+          (chunk) => {
+            check.output = (check.output + chunk).slice(-20000)
+            broadcast('verify:progress', { componentId: input.componentId, checks: results })
+          },
+          { CI: '1' }
+        )
         const code = await done
         check.ms = Date.now() - started
         check.status = code === 0 ? 'passed' : 'failed'
@@ -121,8 +141,11 @@ export function registerVerifyIpc(): void {
   ipcMain.handle(
     'preview:start',
     async (_e, input: { workspaceId: string; root: string; command: string }): Promise<PreviewState> => {
+      // Only a server that actually announced a URL is worth reusing — one still flailing
+      // would hand the caller the same empty state forever.
       const existing = previewState.get(input.workspaceId)
-      if (existing?.running) return existing
+      if (existing?.running && existing.url) return existing
+      if (existing?.running) previews.get(input.workspaceId)?.kill('SIGTERM')
 
       const state: PreviewState = { running: true, url: null, command: input.command, log: '' }
       previewState.set(input.workspaceId, state)
@@ -144,7 +167,7 @@ export function registerVerifyIpc(): void {
       })
 
       // Give the server a chance to announce itself before handing control back.
-      const deadline = Date.now() + 25000
+      const deadline = Date.now() + 60000
       while (!state.url && state.running && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 250))
       }

@@ -168,6 +168,10 @@ export function registerDesignRefineIpc(): void {
         file: invocation.file,
         args: invocation.args,
         display: invocation.display,
+        transform: invocation.transform,
+        banner:
+          `\x1b[2mReading the screenshot and the measured samples with ${agent.label}. ` +
+          `This usually takes a few minutes; steps appear below as it works.\x1b[0m\r\n\r\n`,
         jobId: `refine-${record.id}`,
         onData: (chunk) => {
           transcript = (transcript + chunk).slice(-200_000)

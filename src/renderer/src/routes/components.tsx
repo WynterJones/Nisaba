@@ -33,6 +33,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { CodeView } from '@/components/ui/code-view'
 import type { ComponentRecord } from '../../../preload'
 
 const CHECK_ICON: Record<Check['status'], typeof CheckCircle2> = {
@@ -125,7 +126,13 @@ function Detail({
       })
       setPreview(state)
       if (!state.url) {
-        toast.error('The dev server did not print a URL', { description: command })
+        // Without the tail of the log this reads as "it broke" and nothing else; the reason is
+        // nearly always in there — a missing script, a failed install, a port already held.
+        const tail = state.log.trim().split('\n').slice(-4).join('\n')
+        toast.error('The dev server did not print a URL', {
+          description: tail ? `${command}\n\n${tail}` : command,
+          duration: 12000
+        })
         return
       }
       newTab(state.url)
@@ -215,11 +222,12 @@ function Detail({
             </div>
           </div>
 
-          <ScrollArea className="h-[52vh] rounded-lg border border-border bg-[#08080a]">
-            <pre className="whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-              {file ? body || '(empty file)' : 'Pick a file to read it.'}
-            </pre>
-          </ScrollArea>
+          <div className="h-[52vh] overflow-hidden rounded-lg border border-border bg-[#08080a]">
+            <CodeView
+              value={file ? body || '(empty file)' : 'Pick a file to read it.'}
+              filename={file ?? ''}
+            />
+          </div>
         </div>
 
         {checks.length > 0 && (
