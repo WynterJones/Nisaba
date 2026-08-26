@@ -18,6 +18,7 @@ import { DEFAULT_LEVELS, toDesignMd, type Levels } from '../../../shared/design-
 import { useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -352,15 +353,20 @@ export default function DesignSystems(): React.JSX.Element {
                       >
                         <ExternalLink className="size-3.5" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        title="Delete"
-                        className="hover:text-destructive"
-                        onClick={() => void remove('designSystems', record.id)}
+                      <ConfirmDelete
+                        title="Delete this design profile?"
+                        description={record.name || record.host}
+                        onConfirm={() => remove('designSystems', record.id)}
                       >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Delete"
+                          className="hover:text-destructive"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </ConfirmDelete>
                     </div>
                   </div>
 

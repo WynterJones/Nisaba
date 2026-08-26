@@ -6,6 +6,7 @@ import { useTerminals } from '@/terminals'
 import { cn } from '@/lib/utils'
 import { STATUS_ICON, STATUS_TINT } from '@/routes/jobs'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import { Progress } from '@/components/ui/progress'
 
 /**
@@ -171,13 +172,19 @@ export function JobsDrawer(): React.JSX.Element {
                   </>
                 )}
 
-                <button
-                  onClick={() => void remove('jobs', job.id)}
-                  className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label="Dismiss job"
+                <ConfirmDelete
+                  title="Dismiss this job?"
+                  confirmLabel="Dismiss"
+                  description={`${job.title} — its log is deleted with the record; files already written stay.`}
+                  onConfirm={() => remove('jobs', job.id)}
                 >
-                  <X className="size-3.5" />
-                </button>
+                  <button
+                    className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    aria-label="Dismiss job"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </ConfirmDelete>
               </div>
             )
           })}

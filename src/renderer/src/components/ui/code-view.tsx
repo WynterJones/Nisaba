@@ -77,9 +77,9 @@ function languageFor(name: string): Extension[] {
 }
 
 /**
- * Read-only source display. One component for every place Nisaba shows code, so highlighting,
- * theme and line numbers stay identical whether it is a generated component, extracted CSS or
- * a DESIGN.md.
+ * Source display. One component for every place Nisaba shows code, so highlighting, theme and
+ * line numbers stay identical whether it is a generated component, extracted CSS or a
+ * DESIGN.md. Read-only unless `onChange` is passed — then it is a small editor.
  *
  * `filename` drives the language — pass a bare extension (`"css"`) when there is no real file.
  */
@@ -88,16 +88,24 @@ export function CodeView({
   filename = '',
   numbered = true,
   wrap = false,
+  onChange,
   className
 }: {
   value: string
   filename?: string
   numbered?: boolean
   wrap?: boolean
+  /** Makes the view editable; called with the whole document on every keystroke. */
+  onChange?: (value: string) => void
   className?: string
 }): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
+  // Read through a ref: the editor is built once, and a new handler each render must not
+  // tear it down and lose the cursor.
+  const emit = useRef(onChange)
+  emit.current = onChange
+  const editable = !!onChange
 
   useEffect(() => {
     if (!host.current) return
@@ -111,9 +119,12 @@ export function CodeView({
           ...languageFor(filename),
           ...(numbered ? [lineNumbers()] : []),
           ...(wrap ? [EditorView.lineWrapping] : []),
-          EditorState.readOnly.of(true),
-          // Read-only still leaves a blinking caret and a focusable surface; this is a view.
-          EditorView.editable.of(false)
+          EditorState.readOnly.of(!editable),
+          // Read-only still leaves a blinking caret and a focusable surface; that is a view.
+          EditorView.editable.of(editable),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) emit.current?.(update.state.doc.toString())
+          })
         ]
       })
     })
@@ -123,7 +134,7 @@ export function CodeView({
       view.current = null
     }
     // The language and gutter are baked into the state, so a change there needs a fresh editor.
-  }, [filename, numbered, wrap])
+  }, [filename, numbered, wrap, editable])
 
   // Content changes are a transaction, not a rebuild — switching files keeps the scroll smooth.
   useEffect(() => {

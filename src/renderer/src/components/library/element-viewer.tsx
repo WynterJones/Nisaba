@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Check, Copy, ExternalLink, Globe, Trash2 } from 'lucide-react'
+import { Check, Copy, ExternalLink, Globe, Moon, Sun, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { timeAgo } from '@/components/library/frame'
 import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,31 @@ export function toTailwind(record: ElementRecord): string {
   return parts.join(' ')
 }
 
+/** The small pill used for every toggle in this dialog. */
+function Chip({
+  active,
+  onClick,
+  children
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1 rounded px-2 py-1 font-mono text-[10px] transition-colors',
+        active
+          ? 'bg-brand/20 text-brand-bright'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 function CopyButton({ text, label }: { text: string; label: string }): React.JSX.Element {
   const [done, setDone] = useState(false)
   return (
@@ -81,6 +107,45 @@ function CopyButton({ text, label }: { text: string; label: string }): React.JSX
   )
 }
 
+/**
+ * The saved markup and rules, rendered for real so the element can be hovered, focused and
+ * poked at instead of only looked at. Sandboxed with no scripts and no origin: what is in
+ * here came off someone else's page, and the app window is not a place to run it.
+ */
+function LivePreview({
+  html,
+  css,
+  dark
+}: {
+  html: string
+  css: string
+  dark: boolean
+}): React.JSX.Element {
+  const doc = useMemo(
+    () =>
+      [
+        '<!doctype html><meta charset="utf-8">',
+        // Styles are ours and the page's; images and fonts still load, or the preview is a
+        // grey box. Everything executable is refused.
+        '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src * data: blob:; font-src * data:; style-src \'unsafe-inline\'">',
+        `<style>html{background:${dark ? '#101013' : '#ffffff'};color-scheme:${dark ? 'dark' : 'light'}}`,
+        'body{margin:0;padding:24px;min-height:100vh;box-sizing:border-box;display:grid;place-items:center;font-family:system-ui,-apple-system,sans-serif}</style>',
+        `<style>${css}</style>`,
+        // A click inside the frame must not navigate the preview away from the element.
+        html.replace(/\shref=/g, ' data-href=')
+      ].join(''),
+    [html, css, dark]
+  )
+  return (
+    <iframe
+      srcDoc={doc}
+      sandbox=""
+      title="Live preview"
+      className="size-full border-0 bg-white"
+    />
+  )
+}
+
 export function ElementViewer({
   record,
   onClose
@@ -89,13 +154,18 @@ export function ElementViewer({
   onClose: () => void
 }): React.JSX.Element {
   const [state, setState] = useState('default')
+  // Edits are local to this dialog — the saved record is what the page really had, and the
+  // point of editing here is to try something, not to rewrite history.
+  const [html, setHtml] = useState(record.html ?? '')
+  const [css, setCss] = useState(record.css ?? toCss(record))
+  const [live, setLive] = useState(!!record.html)
+  const [dark, setDark] = useState(false)
   const remove = useLibrary((s) => s.remove)
   const newTab = useApp((s) => s.newTab)
   const navigate = useNavigate()
 
   const frames = [{ state: 'default', file: record.file }, ...record.states]
   const shown = frames.find((f) => f.state === state) ?? frames[0]
-  const css = toCss(record)
   const tw = toTailwind(record)
 
   return (
@@ -119,40 +189,74 @@ export function ElementViewer({
 
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-2">
-            <div className="grid min-h-40 place-items-center overflow-auto rounded-lg border border-border bg-[repeating-conic-gradient(#17171b_0%_25%,#121214_0%_50%)] bg-[length:16px_16px] p-6">
-              <img src={window.api.library.url(shown.file)} alt={record.label} className="max-w-full" />
+            <div className="h-[38vh] min-h-40 overflow-hidden rounded-lg border border-border bg-[repeating-conic-gradient(#17171b_0%_25%,#121214_0%_50%)] bg-[length:16px_16px]">
+              {live ? (
+                <LivePreview html={html} css={css} dark={dark} />
+              ) : (
+                <div className="grid size-full place-items-center overflow-auto p-6">
+                  <img
+                    src={window.api.library.url(shown.file)}
+                    alt={record.label}
+                    className="max-w-full"
+                  />
+                </div>
+              )}
             </div>
 
-            {frames.length > 1 && (
-              <div className="flex flex-wrap gap-1">
-                {frames.map((frame) => (
-                  <button
+            <div className="flex flex-wrap items-center gap-1">
+              {record.html && (
+                <>
+                  {/* The shot is what the page really rendered; the live frame is the saved
+                      markup re-rendered here, and they can differ. Say which is on screen. */}
+                  <Chip active={!live} onClick={() => setLive(false)}>
+                    Screenshot
+                  </Chip>
+                  <Chip active={live} onClick={() => setLive(true)}>
+                    Live
+                  </Chip>
+                  <span className="mx-1 h-3 w-px bg-border" />
+                </>
+              )}
+
+              {live ? (
+                <Chip active={dark} onClick={() => setDark(!dark)}>
+                  {dark ? <Moon className="size-3" /> : <Sun className="size-3" />}
+                  {dark ? 'Dark' : 'Light'}
+                </Chip>
+              ) : (
+                frames.length > 1 &&
+                frames.map((frame) => (
+                  <Chip
                     key={frame.state}
+                    active={shown.state === frame.state}
                     onClick={() => setState(frame.state)}
-                    className={cn(
-                      'rounded px-2 py-1 font-mono text-[10px] transition-colors',
-                      shown.state === frame.state
-                        ? 'bg-brand/20 text-brand-bright'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    )}
                   >
                     :{frame.state}
-                  </button>
-                ))}
-              </div>
-            )}
+                  </Chip>
+                ))
+              )}
+            </div>
           </div>
 
-          <Tabs defaultValue="css" className="flex min-h-0 flex-col">
+          <Tabs defaultValue={record.html ? 'html' : 'css'} className="flex min-h-0 flex-col">
             <TabsList>
+              {record.html && <TabsTrigger value="html">HTML</TabsTrigger>}
               <TabsTrigger value="css">CSS</TabsTrigger>
               <TabsTrigger value="tailwind">Tailwind</TabsTrigger>
               <TabsTrigger value="props">Properties</TabsTrigger>
             </TabsList>
 
+            {record.html && (
+              <TabsContent value="html" className="m-0">
+                <div className="h-[38vh] overflow-hidden rounded-lg border border-border bg-[#08080a]">
+                  <CodeView value={html} filename="element.html" onChange={setHtml} />
+                </div>
+              </TabsContent>
+            )}
+
             <TabsContent value="css" className="m-0">
               <div className="h-[38vh] overflow-hidden rounded-lg border border-border bg-[#08080a]">
-                <CodeView value={css} filename="element.css" />
+                <CodeView value={css} filename="element.css" onChange={setCss} />
               </div>
             </TabsContent>
 
@@ -191,6 +295,7 @@ export function ElementViewer({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {record.html && <CopyButton text={html} label="Copy HTML" />}
           <CopyButton text={css} label="Copy CSS" />
           <CopyButton text={tw} label="Copy Tailwind" />
 
@@ -215,18 +320,23 @@ export function ElementViewer({
             >
               <ExternalLink className="size-3.5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              title="Delete element"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => {
-                void remove('elements', record.id)
+            <ConfirmDelete
+              title="Delete this element?"
+              description={record.label || record.host}
+              onConfirm={async () => {
+                await remove('elements', record.id)
                 onClose()
               }}
             >
-              <Trash2 className="size-3.5" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                title="Delete element"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </ConfirmDelete>
           </div>
         </div>
       </DialogContent>

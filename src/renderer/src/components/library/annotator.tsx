@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -375,15 +376,17 @@ export function Annotator({
               <Undo2 className="size-3.5" />
               Undo
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={shapes.length === 0}
-              onClick={() => setShapes([])}
+            <ConfirmDelete
+              title="Clear every annotation?"
+              confirmLabel="Clear"
+              description={`${shapes.length} shape(s) — Undo cannot bring them back.`}
+              onConfirm={() => setShapes([])}
             >
-              <Trash2 className="size-3.5" />
-              Clear
-            </Button>
+              <Button variant="ghost" size="sm" disabled={shapes.length === 0}>
+                <Trash2 className="size-3.5" />
+                Clear
+              </Button>
+            </ConfirmDelete>
           </div>
         </div>
 

@@ -15,6 +15,7 @@ import { useApp, useLibrary } from '@/store'
 import { OUTPUT_PROFILES } from '@/components/shell/browser-toolbar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -241,15 +242,21 @@ export default function Workspaces(): React.JSX.Element {
                     >
                       <FolderOpen className="size-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Remove workspace"
-                      className="hover:text-destructive"
-                      onClick={() => void remove('workspaces', workspace.id)}
+                    <ConfirmDelete
+                      title="Remove this workspace?"
+                      confirmLabel="Remove"
+                      description={`${workspace.name} — Nisaba forgets the folder; nothing in ${workspace.root} is touched.`}
+                      onConfirm={() => remove('workspaces', workspace.id)}
                     >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Remove workspace"
+                        className="hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </ConfirmDelete>
                   </div>
                 </div>
 

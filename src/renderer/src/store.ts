@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
+  AgentId,
   CaptureRecord,
   Collection,
   ComponentRecord,
@@ -226,6 +227,26 @@ export const useBookmarks = create<BookmarkState>()(
       remove: (id) => set((s) => ({ bookmarks: s.bookmarks.filter((b) => b.id !== id) }))
     }),
     { name: 'nisaba.bookmarks' }
+  )
+)
+
+/**
+ * User preferences that only affect how Nisaba drives other tools. Kept out of the library
+ * index because they belong to this machine, not to the work.
+ */
+type SettingsState = {
+  /** Per-agent opt-in to that CLI's skip-every-prompt flag when implementing an audit. */
+  yolo: Partial<Record<AgentId, boolean>>
+  setYolo: (agent: AgentId, on: boolean) => void
+}
+
+export const useSettings = create<SettingsState>()(
+  persist(
+    (set) => ({
+      yolo: {},
+      setYolo: (agent, on) => set((s) => ({ yolo: { ...s.yolo, [agent]: on } }))
+    }),
+    { name: 'nisaba.settings' }
   )
 )
 

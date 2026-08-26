@@ -25,6 +25,7 @@ import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -425,15 +426,20 @@ function Grid({ kind }: { kind: 'components' | 'templates' }): React.JSX.Element
                     >
                       <FolderOpen className="size-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Delete record"
-                      className="hover:text-destructive"
-                      onClick={() => void remove(kind, record.id)}
+                    <ConfirmDelete
+                      title="Delete this record?"
+                      description={`${record.name} — the generated files in ${record.dir} stay on disk.`}
+                      onConfirm={() => remove(kind, record.id)}
                     >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Delete record"
+                        className="hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </ConfirmDelete>
                   </div>
                 </div>
 

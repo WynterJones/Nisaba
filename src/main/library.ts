@@ -86,6 +86,12 @@ export type ElementRecord = Base & {
   states: ElementState[]
   styles: Record<string, string>
   text: string
+  /**
+   * Cleaned-up markup for the element and the page rules that actually reach it. Optional:
+   * elements saved before this existed have neither, and a page can refuse to give them up.
+   */
+  html?: string
+  css?: string
 }
 
 export type DesignSystemRecord = Base & {

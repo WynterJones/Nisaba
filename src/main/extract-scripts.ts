@@ -371,3 +371,152 @@ export const CANCEL_SCRIPT = `(() => {
   if (host) { host.remove(); return true }
   return false
 })()`
+
+/**
+ * The markup and matching rules for one element, as something a person can read: indented
+ * HTML with the framework bookkeeping stripped, plus the page's own CSS rules that actually
+ * apply to it. Computed styles say what an element *looks* like; this says how it was built,
+ * which is what you need to rebuild it.
+ */
+export function markupScript(selector: string): string {
+  return `(() => {
+  const LIMIT = { nodes: 300, html: 24000, css: 24000 }
+  const el = document.querySelector(${JSON.stringify(selector)})
+  if (!el) return null
+
+  /* ---- markup ---- */
+
+  // Framework bookkeeping, tracking hooks and anything executable. Nothing here survives a
+  // copy-paste into another project, and every one of them makes the markup harder to read.
+  const DROP = /^(on[a-z]+|nonce|integrity|ping|srcset|sizes|loading|decoding|fetchpriority|data-v-[0-9a-f]+|data-react\\w*|data-svelte\\w*|data-testid|data-gtm\\w*|jsaction|jsname|jscontroller|aria-owns)$/i
+  const VOID = new Set(['area','base','br','col','embed','hr','img','input','link','meta','source','track','wbr'])
+
+  const clone = el.cloneNode(true)
+  clone.querySelectorAll('script,noscript,iframe,object,embed,template,style,link').forEach((n) => n.remove())
+
+  const scrub = (node) => {
+    for (const attr of [...node.attributes]) {
+      const empty = attr.value === '' && /^(class|style|id|alt|title)$/i.test(attr.name)
+      if (DROP.test(attr.name) || empty) node.removeAttribute(attr.name)
+    }
+    if (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA') {
+      node.removeAttribute('value')
+      node.value = ''
+    }
+  }
+  scrub(clone)
+  clone.querySelectorAll('*').forEach(scrub)
+  // Comments are page bookkeeping too — hydration markers, ad slots, build stamps.
+  const walker = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT)
+  const comments = []
+  while (walker.nextNode()) comments.push(walker.currentNode)
+  comments.forEach((c) => c.remove())
+
+  let printed = 0
+
+  function attrs(node) {
+    return [...node.attributes]
+      .map((a) => (a.value === '' ? ' ' + a.name : ' ' + a.name + '="' + a.value.replace(/"/g, '&quot;') + '"'))
+      .join('')
+  }
+
+  function print(node, depth) {
+    if (printed > LIMIT.nodes) return ''
+    const pad = '  '.repeat(depth)
+    if (node.nodeType === 3) {
+      const text = node.textContent.replace(/\\s+/g, ' ').trim()
+      return text ? pad + text + '\\n' : ''
+    }
+    if (node.nodeType !== 1) return ''
+    printed++
+    const tag = node.tagName.toLowerCase()
+    // An icon's path data is noise at every indent level; keep it exact but on one line.
+    if (tag === 'svg') return pad + node.outerHTML.replace(/\\s*\\n\\s*/g, ' ') + '\\n'
+    if (VOID.has(tag)) return pad + '<' + tag + attrs(node) + '>\\n'
+    const kids = [...node.childNodes]
+    if (!kids.some((k) => k.nodeType === 1)) {
+      const text = node.textContent.replace(/\\s+/g, ' ').trim()
+      return pad + '<' + tag + attrs(node) + '>' + text + '</' + tag + '>\\n'
+    }
+    let out = pad + '<' + tag + attrs(node) + '>\\n'
+    for (const kid of kids) out += print(kid, depth + 1)
+    return out + pad + '</' + tag + '>\\n'
+  }
+
+  let html = print(clone, 0).trimEnd()
+  if (html.length > LIMIT.html) html = html.slice(0, LIMIT.html) + '\\n<!-- truncated -->'
+
+  /* ---- the rules that reach it ---- */
+
+  const nodes = [el, ...el.querySelectorAll('*')].slice(0, LIMIT.nodes)
+  const seen = new Set()
+  const hits = []
+
+  // A rule counts when any node in the subtree matches it with its pseudo-classes stripped —
+  // that is what keeps :hover and ::before in the output instead of silently dropping them.
+  function reaches(sel) {
+    const probe = sel.replace(/::?[a-z-]+(\\([^)]*\\))?/g, '').trim()
+    if (!probe) return false
+    try {
+      return nodes.some((n) => n.matches(probe))
+    } catch {
+      return false
+    }
+  }
+
+  function consider(rule, wrap) {
+    if (hits.length > 200) return
+    if (rule.selectorText && rule.style) {
+      if (!rule.selectorText.split(',').some(reaches)) return
+      const text = wrap ? wrap(rule.cssText) : rule.cssText
+      if (seen.has(text)) return
+      seen.add(text)
+      hits.push(text)
+      return
+    }
+    // Media queries carry the responsive half of the design; keep them, condition and all.
+    if (rule.media && rule.cssRules) {
+      const condition = rule.media.mediaText
+      for (const inner of rule.cssRules) {
+        consider(inner, (t) => '@media ' + condition + ' {\\n  ' + t + '\\n}')
+      }
+    }
+  }
+
+  const vars = {}
+  for (const sheet of document.styleSheets) {
+    let rules
+    try { rules = sheet.cssRules } catch { continue } // cross-origin stylesheet
+    if (!rules) continue
+    for (const rule of rules) {
+      if (rule.style && rule.selectorText && /^(:root|html|\\[data-theme)/.test(rule.selectorText)) {
+        for (const prop of rule.style) {
+          if (prop.startsWith('--')) vars[prop] = rule.style.getPropertyValue(prop).trim()
+        }
+      }
+      consider(rule, null)
+    }
+  }
+
+  let css = hits.join('\\n\\n')
+
+  // Only the custom properties the kept rules actually reference, resolved a few levels deep
+  // so a token defined in terms of another token still renders.
+  const used = {}
+  for (let pass = 0; pass < 4; pass++) {
+    const before = Object.keys(used).length
+    const body = css + Object.values(used).join(';')
+    for (const [name, value] of Object.entries(vars)) {
+      if (!used[name] && body.includes('var(' + name)) used[name] = value
+    }
+    if (Object.keys(used).length === before) break
+  }
+  const names = Object.keys(used)
+  if (names.length) {
+    css = ':root {\\n' + names.map((n) => '  ' + n + ': ' + used[n] + ';').join('\\n') + '\\n}\\n\\n' + css
+  }
+  if (css.length > LIMIT.css) css = css.slice(0, LIMIT.css) + '\\n/* truncated */'
+
+  return { html, css }
+})()`
+}

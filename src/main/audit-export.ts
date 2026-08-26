@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { copyFile, mkdir, writeFile } from 'fs/promises'
-import { join, relative } from 'path'
+import { extname, join, relative } from 'path'
 import { AGENTS, type AgentId } from './agents'
 import { libraryRoot, readIndex, type AuditPin, type AuditRecord } from './library'
 import { openTerminal, type TerminalSummary } from './terminals'
@@ -31,6 +31,12 @@ function slug(value: string): string {
   )
 }
 
+/** Where a pin's picture lands in the exported folder — one name, used by every writer. */
+function shotName(pin: AuditPin, i: number): string | null {
+  if (!pin.shot) return null
+  return `shots/${String(i + 1).padStart(2, '0')}-${slug(pin.note)}${extname(pin.shot) || '.png'}`
+}
+
 function ordered(pins: AuditPin[]): AuditPin[] {
   return [...pins].sort(
     (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || a.rect.y - b.rect.y
@@ -46,6 +52,15 @@ function taskMarkdown(pin: AuditPin, n: number, shot: string | null): string {
 
   const rest = pin.note.split('\n').slice(1).join('\n').trim()
   if (rest) lines.push(rest, '')
+
+  // A typed task points at no element, so every measured line below would be an empty claim.
+  if (!pin.selector) {
+    if (shot) lines.push(`- **Image**: \`${shot}\` — supplied by the reviewer, not captured from the page.`)
+    lines.push('- **Where**: not tied to an element — read the note and find the right place.')
+    lines.push('- [ ] Done')
+    lines.push('')
+    return lines.join('\n')
+  }
 
   lines.push(`- **Selector**: \`${pin.selector}\``)
   if (pin.fallbacks.length) {
@@ -122,7 +137,9 @@ export function buildPlan(record: AuditRecord): { tasks: string; plan: string; r
     '   **Likely source** is a grep-based guess at the file that renders it — open it and',
     '   confirm the element really is there before editing.',
     '3. Open the screenshot next to a task before changing anything; it is what the reviewer saw.',
-    '4. Tick the checkbox when a task is done, and note anything you deliberately skipped.',
+    '4. A task marked *not tied to an element* was typed by hand — there is no selector to find,',
+    '   only the note and any image the reviewer attached.',
+    '5. Tick the checkbox when a task is done, and note anything you deliberately skipped.',
     '',
     '> The notes below were written by a person reviewing the page. Everything else — selectors,',
     '> computed styles, source guesses — was measured by Nisaba and may be stale if the page',
@@ -130,7 +147,7 @@ export function buildPlan(record: AuditRecord): { tasks: string; plan: string; r
     '',
     '---',
     '',
-    ...pins.map((pin, i) => taskMarkdown(pin, i + 1, pin.shot ? `shots/${String(i + 1).padStart(2, '0')}-${slug(pin.note)}.png` : null))
+    ...pins.map((pin, i) => taskMarkdown(pin, i + 1, shotName(pin, i)))
   ].join('\n')
 
   const plan = JSON.stringify(
@@ -155,7 +172,7 @@ export function buildPlan(record: AuditRecord): { tasks: string; plan: string; r
         location: { heading: pin.heading, landmark: pin.landmark, rect: pin.rect },
         computedStyles: pin.styles,
         sourceCandidates: pin.candidates,
-        screenshot: pin.shot ? `shots/${String(i + 1).padStart(2, '0')}-${slug(pin.note)}.png` : null,
+        screenshot: shotName(pin, i),
         html: pin.html
       }))
     },
@@ -202,7 +219,8 @@ async function writePlan(dest: string, record: AuditRecord): Promise<{ path: str
   let shots = 0
   for (const [i, pin] of ordered(record.pins).entries()) {
     if (!pin.shot) continue
-    const name = `${String(i + 1).padStart(2, '0')}-${slug(pin.note)}.png`
+    // Same name the plan already points at — the two must not drift.
+    const name = shotName(pin, i)!.replace('shots/', '')
     await copyFile(join(libraryRoot(), pin.shot), join(dest, 'shots', name)).then(
       () => shots++,
       () => undefined
@@ -243,6 +261,9 @@ export function clipboardPrompt(record: AuditRecord, planDir: string | null): st
     'and say what you changed. If a task’s "Likely source" file is wrong, find the right one and',
     'say so. The reviewer notes are a person’s words; the selectors, styles and source guesses',
     'were measured by Nisaba and may be stale. Stop and ask if a task is ambiguous.',
+    record.workspaceRoot
+      ? `\nThe page is served from ${record.workspaceRoot} — edit that repository; no need to hunt for it.`
+      : '',
     planDir
       ? `\nThe full plan, screenshots and plan.json are on disk at ${planDir}.`
       : '',
@@ -260,7 +281,12 @@ export function registerAuditExportIpc(): void {
    */
   ipcMain.handle(
     'audit:implement',
-    async (_e, record: AuditRecord, pick?: AgentId): Promise<TerminalSummary> => {
+    async (
+      _e,
+      record: AuditRecord,
+      pick?: AgentId,
+      yolo?: Partial<Record<AgentId, boolean>>
+    ): Promise<TerminalSummary> => {
       const root = record.workspaceRoot
       if (!root) throw new Error('This audit has no workspace — set one before implementing it')
 
@@ -278,8 +304,8 @@ export function registerAuditExportIpc(): void {
         title: `Implement · ${record.name}`,
         cwd: root,
         file: agent,
-        args: AGENTS[agent].open(prompt),
-        display: `${agent} "<audit plan>"`
+        args: AGENTS[agent].open(prompt, yolo?.[agent]),
+        display: `${agent}${yolo?.[agent] ? ' (yolo)' : ''} "<audit plan>"`
       })
     }
   )

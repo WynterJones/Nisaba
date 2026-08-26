@@ -6,6 +6,7 @@ import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import type { ElementRecord } from '../../../preload'
 import { openInApp } from '@/actions'
 
@@ -75,15 +76,20 @@ function ElementCard({
           >
             <ExternalLink className="size-3.5" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Delete"
-            className="hover:text-destructive"
-            onClick={() => void remove('elements', record.id)}
+          <ConfirmDelete
+            title="Delete this element?"
+            description={record.label || record.host}
+            onConfirm={() => remove('elements', record.id)}
           >
-            <Trash2 className="size-3.5" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Delete"
+              className="hover:text-destructive"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </ConfirmDelete>
         </div>
       </div>
     </article>

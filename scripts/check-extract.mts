@@ -5,13 +5,22 @@ import assert from 'node:assert/strict'
 import vm from 'node:vm'
 import {
   CANCEL_SCRIPT,
+  markupScript,
   ELEMENT_SCRIPT,
   PAGE_SCRIPT,
   SELECTOR_SCRIPT
 } from '../src/main/extract-scripts.ts'
 import { PROFILE_SCRIPT } from '../src/main/design-script.ts'
 
-const SCRIPTS = { SELECTOR_SCRIPT, ELEMENT_SCRIPT, PAGE_SCRIPT, CANCEL_SCRIPT, PROFILE_SCRIPT }
+const MARKUP_SCRIPT = markupScript('.card > button:nth-of-type(2)')
+const SCRIPTS = {
+  SELECTOR_SCRIPT,
+  ELEMENT_SCRIPT,
+  PAGE_SCRIPT,
+  CANCEL_SCRIPT,
+  PROFILE_SCRIPT,
+  MARKUP_SCRIPT
+}
 
 for (const [name, source] of Object.entries(SCRIPTS)) {
   try {
@@ -43,5 +52,13 @@ assert.ok(ELEMENT_SCRIPT.includes('role=\\"button\\"'), 'element script lost the
 for (const needle of ['buttons', 'inputs', 'selects', 'cards', 'surface']) {
   assert.ok(PROFILE_SCRIPT.includes(needle + ','), `profiler must return ${needle}`)
 }
+
+// The selector is spliced into source, so it must arrive quoted — an unescaped one would end
+// the string and turn the rest of the script into syntax errors.
+assert.ok(
+  MARKUP_SCRIPT.includes('document.querySelector(".card > button:nth-of-type(2)")'),
+  'markup script must embed its selector as a quoted string'
+)
+new vm.Script(markupScript('a[title="he said \'hi\'"]'), { filename: 'markup-quotes.js' })
 
 console.log('page scripts ok:', Object.keys(SCRIPTS).join(', '))

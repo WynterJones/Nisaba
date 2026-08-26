@@ -9,6 +9,7 @@ import { useTerminals } from '@/terminals'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -225,15 +226,20 @@ export default function Resources(): React.JSX.Element {
                 >
                   <ExternalLink className="size-3.5" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Delete"
-                  className="hover:text-destructive"
-                  onClick={() => void remove('resources', record.id)}
+                <ConfirmDelete
+                  title="Delete this resource?"
+                  description={record.name || record.url}
+                  onConfirm={() => remove('resources', record.id)}
                 >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="Delete"
+                    className="hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </ConfirmDelete>
               </div>
             </li>
           ))}

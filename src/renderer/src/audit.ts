@@ -18,6 +18,8 @@ type AuditState = {
   /** Reopens a saved audit in the panel so more pins can be added to it. */
   open: (record: AuditRecord) => void
   stop: () => Promise<void>
+  /** A task that belongs to no element — typed by hand, optionally with your own picture. */
+  addNote: () => Promise<void>
   update: (id: string, patch: Partial<AuditPin>) => void
   remove: (id: string) => Promise<void>
   focus: (id: string | null) => void
@@ -35,6 +37,15 @@ const emptyDraft = (page: { url: string; title: string; host: string }, root: st
   pins: [],
   exportedTo: null
 })
+
+/**
+ * Where the page under review is served from. A localhost dev server can be traced to the
+ * folder it runs in, which beats any guess; anything else falls back to the workspace list.
+ */
+async function resolveWorkspaceRoot(url: string): Promise<string | null> {
+  const served = await window.api.workspaces.serverRoot(url).catch(() => null)
+  return served ?? guessWorkspaceRoot(url)
+}
 
 /** Picks the workspace whose folder most plausibly serves the page being reviewed. */
 function guessWorkspaceRoot(url: string): string | null {
@@ -73,7 +84,7 @@ export const useAudit = create<AuditState>((set, get) => ({
       const page = await window.api.audit.start(continuing ? prior!.pins.length : 0)
       set({
         active: true,
-        draft: continuing ? prior! : emptyDraft(page, guessWorkspaceRoot(page.url)),
+        draft: continuing ? prior! : emptyDraft(page, await resolveWorkspaceRoot(page.url)),
         savedId: continuing ? get().savedId : null
       })
       useApp.getState().openInspector('inspect')
@@ -134,6 +145,42 @@ export const useAudit = create<AuditState>((set, get) => ({
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^Error: /, '') : String(error))
     }
+  },
+
+  addNote: async () => {
+    // A typed task does not need the page picker, so it may be the first thing in a review.
+    let draft = get().draft
+    if (!draft) {
+      const app = useApp.getState()
+      const tab = app.tabs.find((t) => t.id === app.activeTabId)
+      const url = tab?.url ?? ''
+      const host = URL.canParse(url) ? new URL(url).hostname : 'review'
+      draft = emptyDraft({ url, title: tab?.title ?? '', host }, await resolveWorkspaceRoot(url))
+    }
+    const pin: AuditPin = {
+      id: `note-${Date.now()}`,
+      index: draft.pins.length + 1,
+      note: '',
+      category: 'other',
+      priority: 'normal',
+      status: 'open',
+      selector: '',
+      fallbacks: [],
+      tag: 'note',
+      rect: { x: 0, y: 0, width: 0, height: 0 },
+      text: '',
+      html: '',
+      styles: {},
+      classes: [],
+      elementId: null,
+      testId: null,
+      ariaLabel: null,
+      heading: null,
+      landmark: null,
+      candidates: [],
+      shot: null
+    }
+    set({ draft: { ...draft, pins: [...draft.pins, pin] }, focused: pin.id })
   },
 
   open: (record) => {

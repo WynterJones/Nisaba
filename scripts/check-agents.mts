@@ -21,4 +21,17 @@ for (const id of AGENT_IDS) {
   }
 }
 
+// A yolo flag that silently does nothing is worse than none: Settings would offer a switch
+// that changes no argument, so the agent still stops on every prompt.
+for (const id of AGENT_IDS) {
+  const safe = AGENTS[id].open(PROMPT)
+  const loose = AGENTS[id].open(PROMPT, true)
+  if (AGENTS[id].yolo) {
+    assert.notDeepEqual(loose, safe, `${id} advertises a yolo flag but ignores it`)
+    assert.equal(loose.filter((a) => a === PROMPT).length, 1, `${id} yolo dropped the prompt`)
+  } else {
+    assert.deepEqual(loose, safe, `${id} has no yolo flag but changed its arguments`)
+  }
+}
+
 console.log(`ok — ${AGENT_IDS.length} agent CLIs invoke cleanly`)

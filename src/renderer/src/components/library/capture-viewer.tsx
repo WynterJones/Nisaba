@@ -18,6 +18,7 @@ import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -250,15 +251,20 @@ export function CaptureViewer({
               <Globe className="size-3.5" />
               Open original page
             </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              title="Delete capture"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => void drop()}
+            <ConfirmDelete
+              title="Delete this capture?"
+              description={capture.title || capture.url}
+              onConfirm={drop}
             >
-              <Trash2 className="size-3.5" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                title="Delete capture"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </ConfirmDelete>
           </div>
         </div>
       </DialogContent>

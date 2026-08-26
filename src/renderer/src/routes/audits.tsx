@@ -19,6 +19,7 @@ import { LibraryFrame, timeAgo } from '@/components/library/frame'
 import { useApp, useLibrary } from '@/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -218,15 +219,20 @@ export default function Audits(): React.JSX.Element {
                       >
                         <ExternalLink className="size-3.5" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        title="Delete review"
-                        className="hover:text-destructive"
-                        onClick={() => void remove('audits', record.id)}
+                      <ConfirmDelete
+                        title="Delete this review?"
+                        description={`${record.name} — ${record.pins.length} task(s). Anything already exported to disk stays.`}
+                        onConfirm={() => remove('audits', record.id)}
                       >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Delete review"
+                          className="hover:text-destructive"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </ConfirmDelete>
                     </div>
                   </div>
 

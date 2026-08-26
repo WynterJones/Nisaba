@@ -106,6 +106,24 @@ function pageMenu(
   return Menu.buildFromTemplate(items)
 }
 
+/**
+ * Cmd/Ctrl+R belongs to the page being browsed. Electron's default accelerator reloads the
+ * window it lands in, which for Nisaba means throwing away the whole app shell — tabs, panels
+ * and any in-progress audit — so it is claimed here for the active tab instead. Attached to
+ * both the shell and every page, because whichever has focus is what receives the key.
+ */
+function claimReloadKey(wc: Electron.WebContents): void {
+  wc.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' || input.key.toLowerCase() !== 'r') return
+    if (input.alt || !(input.control || input.meta)) return
+    e.preventDefault()
+    const page = activeView()?.webContents
+    if (!page) return
+    if (input.shift) page.reloadIgnoringCache()
+    else page.reload()
+  })
+}
+
 function createView(win: BrowserWindow, id: string): WebContentsView {
   const view = new WebContentsView({
     webPreferences: {
@@ -139,6 +157,7 @@ function createView(win: BrowserWindow, id: string): WebContentsView {
     return { action: 'deny' }
   })
 
+  claimReloadKey(wc)
   wc.on('context-menu', (_e, params) => pageMenu(win, wc, params).popup({ window: win }))
   wc.on('will-navigate', (e, url) => {
     if (!/^https?:|^about:blank$/.test(url)) {
@@ -204,6 +223,7 @@ function layout(win: BrowserWindow): void {
 
 export function registerBrowserIpc(win: BrowserWindow): void {
   mainWindow = win
+  claimReloadKey(win.webContents)
   const handle = <T>(channel: string, fn: (...args: never[]) => T): void => {
     ipcMain.handle(channel, (_e, ...args) => fn(...(args as never[])))
   }

@@ -1,6 +1,7 @@
 import { ipcMain, type WebContentsView } from 'electron'
 import { activeView } from './browser'
 import { captureRect, pageMeta } from './capture'
+import { markupScript } from './extract-scripts'
 import { addRecord, hashImage, newId, writeImage, type ElementRecord, type Rect } from './library'
 
 export type ElementCandidate = {
@@ -211,6 +212,12 @@ export function registerElementIpc(): void {
           if (!png) throw new Error('the page is no longer open')
           const id = newId()
 
+          // Markup is a bonus, not the point: a page that has moved on since detection still
+          // gets saved with its screenshot and styles.
+          const markup = (await view.webContents
+            .executeJavaScript(markupScript(candidate.selector), true)
+            .catch(() => null)) as { html: string; css: string } | null
+
           // Screenshot each declared interaction state as its own frame.
           const states: ElementRecord['states'] = []
           for (const state of candidate.states.filter((s) => s !== 'disabled')) {
@@ -240,7 +247,9 @@ export function registerElementIpc(): void {
               rect: candidate.rect,
               states,
               styles: candidate.styles,
-              text: candidate.text
+              text: candidate.text,
+              html: markup?.html,
+              css: markup?.css
             })
           )
         } catch (error) {

@@ -14,6 +14,7 @@ import { useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -206,15 +207,20 @@ export default function Jobs(): React.JSX.Element {
                     >
                       <FolderOpen className="size-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Delete record"
-                      className="hover:text-destructive"
-                      onClick={() => void remove('jobs', job.id)}
+                    <ConfirmDelete
+                      title="Delete this job record?"
+                      description={`${job.title} — the log goes with it; files already written to the workspace stay.`}
+                      onConfirm={() => remove('jobs', job.id)}
                     >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Delete record"
+                        className="hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </ConfirmDelete>
                   </div>
                 </li>
               )

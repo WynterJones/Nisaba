@@ -1,7 +1,9 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { access, readdir } from 'fs/promises'
 import { constants } from 'fs'
-import { join, resolve, relative, isAbsolute } from 'path'
+import { dirname, join, resolve, relative, isAbsolute } from 'path'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import { addRecord, newId, patchRecord, readIndex, type WorkspaceRecord } from './library'
 
 export type WorkspaceProbe = {
@@ -16,6 +18,64 @@ export type WorkspaceProbe = {
 export function isInside(root: string, target: string): boolean {
   const rel = relative(resolve(root), resolve(target))
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
+}
+
+const run = promisify(execFile)
+
+const LOOPBACK = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1)$/
+
+/** Nearest ancestor that looks like a checkout, so a dev server started in `apps/web` still
+ *  reports the repo the agent should work in. */
+async function projectRoot(from: string): Promise<string> {
+  let at = resolve(from)
+  for (let i = 0; i < 6; i++) {
+    const files = await readdir(at).catch(() => [] as string[])
+    if (files.includes('.git') || files.includes('package.json')) return at
+    const up = dirname(at)
+    if (up === at) break
+    at = up
+  }
+  return resolve(from)
+}
+
+/**
+ * The folder a localhost page is actually served from, taken from the working directory of
+ * the process listening on its port. An audit of a dev server can then name the repository
+ * instead of leaving the agent to guess which one it is. Returns null for anything remote,
+ * or when nothing is listening we can see.
+ */
+export async function serverRoot(url: string): Promise<string | null> {
+  let port = ''
+  try {
+    const parsed = new URL(url)
+    if (!LOOPBACK.test(parsed.hostname)) return null
+    port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80')
+  } catch {
+    return null
+  }
+
+  const lsof = (args: string[]): Promise<string> =>
+    // A GUI launch inherits a bare PATH; lsof lives in /usr/sbin on macOS.
+    run('lsof', args, {
+      timeout: 5000,
+      env: { ...process.env, PATH: `${process.env.PATH ?? ''}:/usr/sbin:/usr/bin` }
+    }).then(
+      (r) => r.stdout,
+      () => ''
+    )
+
+  const pid = (await lsof(['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'])).trim().split('\n')[0]
+  if (!pid) return null
+
+  // -Fn prints one field per line, each prefixed by its tag; the cwd is the `n` line.
+  const cwd = (await lsof(['-a', '-p', pid, '-d', 'cwd', '-Fn']))
+    .split('\n')
+    .find((line) => line.startsWith('n') && line.length > 1)
+    ?.slice(1)
+  if (!cwd) return null
+
+  const probe = await probeWorkspace(cwd)
+  return probe.exists && probe.writable ? projectRoot(cwd) : null
 }
 
 export async function probeWorkspace(root: string): Promise<WorkspaceProbe> {
@@ -80,6 +140,8 @@ export function registerWorkspaceIpc(): void {
   })
 
   ipcMain.handle('workspaces:probe', (_e, root: string) => probeWorkspace(root))
+
+  ipcMain.handle('workspaces:serverRoot', (_e, url: string) => serverRoot(url))
 
   ipcMain.handle(
     'workspaces:create',

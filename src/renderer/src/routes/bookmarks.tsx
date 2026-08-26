@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { StatusBar } from '@/components/library/frame'
 import { parseUrlList, useApp, useBookmarks } from '@/store'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import {
   Dialog,
   DialogContent,
@@ -163,15 +164,20 @@ export default function Bookmarks(): React.JSX.Element {
                   >
                     <ExternalLink className="size-3.5" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => remove(bookmark.id)}
-                    aria-label="Delete bookmark"
-                    className="hover:text-destructive"
+                  <ConfirmDelete
+                    title="Delete this bookmark?"
+                    description={bookmark.title || bookmark.url}
+                    onConfirm={() => remove(bookmark.id)}
                   >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Delete bookmark"
+                      className="hover:text-destructive"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </ConfirmDelete>
                 </div>
               </li>
             ))}

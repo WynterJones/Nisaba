@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router'
 import { useState } from 'react'
 import { Camera, ExternalLink, FolderOpen, PenLine, Trash2 } from 'lucide-react'
 import { Annotator } from '@/components/library/annotator'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import { CaptureViewer } from '@/components/library/capture-viewer'
 import { TagEditor } from '@/components/library/tag-editor'
 import { LibraryFrame, timeAgo } from '@/components/library/frame'
@@ -60,15 +61,20 @@ function RowActions({
       >
         <ExternalLink className="size-3.5" />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        title="Delete capture"
-        className="hover:text-destructive"
-        onClick={() => void remove('captures', record.id)}
+      <ConfirmDelete
+        title="Delete this capture?"
+        description={record.title || record.url}
+        onConfirm={() => remove('captures', record.id)}
       >
-        <Trash2 className="size-3.5" />
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Delete capture"
+          className="hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </ConfirmDelete>
     </div>
   )
 }

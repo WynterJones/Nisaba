@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { useApp, useLibrary } from '@/store'
+import { useApp, useLibrary, useSettings } from '@/store'
 import { useTerminals } from '@/terminals'
 
 function fail(error: unknown): void {
@@ -131,7 +131,11 @@ export async function implementAudit(
   agent?: import('../../preload').AgentId
 ): Promise<void> {
   try {
-    const session = await window.api.audit.implement(record, agent)
+    const session = await window.api.audit.implement(
+      record,
+      agent,
+      useSettings.getState().yolo
+    )
     useTerminals.getState().show(session.id)
     toast.success('Agent started on this audit', { description: session.cwd })
   } catch (error) {

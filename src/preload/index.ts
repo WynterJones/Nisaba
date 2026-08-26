@@ -154,6 +154,8 @@ const api = {
   workspaces: {
     pick: (): Promise<string | null> => invoke('workspaces:pick'),
     probe: (root: string): Promise<WorkspaceProbe> => invoke('workspaces:probe', root),
+    /** The folder a localhost dev server runs out of, or null if the page isn't local. */
+    serverRoot: (url: string): Promise<string | null> => invoke('workspaces:serverRoot', url),
     create: (input: Omit<WorkspaceRecord, 'id' | 'createdAt'>): Promise<WorkspaceRecord> =>
       invoke('workspaces:create', input),
     /** Re-probes the folder when `root` changes — it is the boundary jobs are held inside. */
@@ -202,6 +204,8 @@ const api = {
     next: (): Promise<{ id: string; index: number; context: PinContext; shot: string | null } | null> =>
       invoke('audit:next'),
     remove: (id: string): Promise<boolean> => invoke('audit:remove', id),
+    /** Copies a picked image into the library; resolves null if the dialog was cancelled. */
+    attach: (): Promise<string | null> => invoke('audit:attach'),
     stop: (): Promise<void> => invoke('audit:stop'),
     locate: (root: string, needles: Needle[]): Promise<SourceMatch[]> =>
       invoke('sourcemap:locate', root, needles),
@@ -214,8 +218,12 @@ const api = {
     prompt: (record: AuditRecord, planDir?: string | null): Promise<string> =>
       invoke('audit:prompt', record, planDir ?? null),
     /** Writes the plan into the workspace and starts an agent on it in a live terminal. */
-    implement: (record: AuditRecord, agent?: AgentId): Promise<TerminalSummary> =>
-      invoke('audit:implement', record, agent)
+    implement: (
+      record: AuditRecord,
+      agent?: AgentId,
+      /** Per-agent opt-in to its skip-every-prompt flag. */
+      yolo?: Partial<Record<AgentId, boolean>>
+    ): Promise<TerminalSummary> => invoke('audit:implement', record, agent, yolo)
   },
 
   terminal: {

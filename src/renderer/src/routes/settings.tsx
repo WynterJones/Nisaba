@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router'
-import { useApp, useLibrary } from '@/store'
+import { useApp, useLibrary, useSettings } from '@/store'
 import { refreshAgents, useAgents } from '@/agents'
 import { useOnboarding } from '@/components/shell/onboarding'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import { AGENTS, AGENT_IDS } from '../../../shared/agents'
 import mark from '@/assets/mark.png'
 import wynter from '@/assets/wynter.png'
 
@@ -64,6 +66,7 @@ export default function Settings(): React.JSX.Element {
   const [root, setRoot] = useState('')
   const agents = useAgents()
   const { captures, sections, elements, designSystems, refresh } = useLibrary()
+  const { yolo, setYolo } = useSettings()
   const newTab = useApp((s) => s.newTab)
   const navigate = useNavigate()
 
@@ -177,6 +180,27 @@ export default function Settings(): React.JSX.Element {
               </div>
             ))
           )}
+          <div className="flex flex-col gap-3">
+            <Label className="text-xs text-muted-foreground">Audit hand-off</Label>
+            {AGENT_IDS.filter((id) => AGENTS[id].yolo).map((id) => (
+              <div key={id} className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{AGENTS[id].label} without prompts</p>
+                  <p className="text-xs text-muted-foreground">{AGENTS[id].yolo}</p>
+                </div>
+                <Switch
+                  checked={yolo[id] ?? false}
+                  onCheckedChange={(on) => setYolo(id, on)}
+                />
+              </div>
+            ))}
+            {/* The flags only apply to the terminal Nisaba starts, so say where they bite. */}
+            <p className="text-xs text-muted-foreground">
+              Applies when an audit is handed to that CLI from Nisaba. The agent then edits your
+              workspace without asking — leave off unless you are watching the terminal.
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => void refreshAgents()}>
               <RefreshCw className="size-3.5" />

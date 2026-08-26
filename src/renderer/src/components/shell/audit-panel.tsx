@@ -3,13 +3,16 @@ import {
   ChevronDown,
   ClipboardCopy,
   FileCode2,
+  ImagePlus,
   Loader2,
   MousePointerClick,
+  NotebookPen,
   Save,
   Search,
   SquareDashedMousePointer,
   SquareTerminal,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyAuditPrompt, implementAudit } from '@/actions'
@@ -18,6 +21,7 @@ import { useApp, useLibrary } from '@/store'
 import { cn } from '@/lib/utils'
 import { AgentMenu } from '@/components/shell/agent-menu'
 import { Button } from '@/components/ui/button'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { AgentId, AuditPin } from '../../../../preload'
@@ -34,6 +38,14 @@ function PinCard({ pin }: { pin: AuditPin }): React.JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null)
   const searching = locating.includes(pin.id)
   const source = pin.candidates[0]
+  // No selector means nobody pointed at an element: this task was typed, so the panel drops
+  // the element line and offers a picture instead.
+  const typed = !pin.selector
+
+  const attach = async (): Promise<void> => {
+    const file = await window.api.audit.attach().catch(() => null)
+    if (file) update(pin.id, { shot: file })
+  }
 
   useEffect(() => {
     if (isFocused) ref.current?.focus()
@@ -53,34 +65,64 @@ function PinCard({ pin }: { pin: AuditPin }): React.JSX.Element {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-mono text-[10px] text-muted-foreground">
-            &lt;{pin.tag}&gt; {pin.text && `“${pin.text.slice(0, 34)}”`}
+            {typed ? 'typed task' : `<${pin.tag}> ${pin.text ? `“${pin.text.slice(0, 34)}”` : ''}`}
           </p>
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            void remove(pin.id)
-          }}
-          title="Remove pin"
-          className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+        {typed && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              void attach()
+            }}
+            title={pin.shot ? 'Replace the image' : 'Attach an image'}
+            className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <ImagePlus className="size-3" />
+          </button>
+        )}
+        <ConfirmDelete
+          title="Remove this pin?"
+          confirmLabel="Remove"
+          description={pin.note.split('\n')[0] || `<${pin.tag}> ${pin.text}`}
+          onConfirm={() => remove(pin.id)}
         >
-          <Trash2 className="size-3" />
-        </button>
+          <button
+            onClick={(e) => e.stopPropagation()}
+            title="Remove pin"
+            className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+          >
+            <Trash2 className="size-3" />
+          </button>
+        </ConfirmDelete>
       </div>
 
       {pin.shot && (
-        <img
-          src={window.api.library.url(pin.shot, true)}
-          alt=""
-          className="max-h-24 w-full rounded border border-border object-cover object-top"
-        />
+        <div className="relative">
+          <img
+            src={window.api.library.url(pin.shot, true)}
+            alt=""
+            className="max-h-24 w-full rounded border border-border object-cover object-top"
+          />
+          {typed && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                update(pin.id, { shot: null })
+              }}
+              title="Remove the image"
+              className="absolute right-1 top-1 grid size-5 place-items-center rounded bg-background/80 text-muted-foreground backdrop-blur transition-colors hover:text-destructive"
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
       )}
 
       <textarea
         ref={ref}
         value={pin.note}
         onChange={(e) => update(pin.id, { note: e.target.value })}
-        placeholder="What needs fixing here?"
+        placeholder={typed ? 'What needs doing?' : 'What needs fixing here?'}
         rows={2}
         className="w-full resize-none rounded border border-input bg-secondary/40 p-2 text-xs outline-none transition-colors placeholder:text-muted-foreground focus:border-brand-bright"
       />
@@ -123,7 +165,7 @@ function PinCard({ pin }: { pin: AuditPin }): React.JSX.Element {
         </div>
       </div>
 
-      {searching ? (
+      {typed ? null : searching ? (
         <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <Search className="size-2.5 animate-pulse" />
           Looking for this in your workspace…
@@ -148,7 +190,7 @@ function PinCard({ pin }: { pin: AuditPin }): React.JSX.Element {
 
 /** Replaces the inspector while a review is running — the notes have to live outside the page. */
 export function AuditPanel(): React.JSX.Element {
-  const { active, draft, savedId, stop, start, save, reset } = useAudit()
+  const { active, draft, savedId, stop, start, save, reset, addNote } = useAudit()
   const workspaces = useLibrary((s) => s.workspaces)
   const setOverlay = useApp((s) => s.setOverlay)
   const pins = draft?.pins ?? []
@@ -194,6 +236,11 @@ export function AuditPanel(): React.JSX.Element {
     await stop()
     const record = await save()
     if (record) await copyAuditPrompt({ ...record, exportedTo: draft?.exportedTo ?? record.exportedTo })
+  }
+
+  const close = (): void => {
+    void stop()
+    reset()
   }
 
   /** Saving first is what gives the plan its shots and source matches on disk. */
@@ -248,11 +295,17 @@ export function AuditPanel(): React.JSX.Element {
                 ? 'Click anything on the page to pin a note to it. Each pin remembers the element, its styles and where it lives in your code.'
                 : 'Start a review, then click your way down the page noting everything that needs fixing.'}
             </p>
-            {!active && (
-              <Button size="sm" onClick={() => void start()}>
-                Start review
+            <div className="flex gap-2">
+              {!active && (
+                <Button size="sm" onClick={() => void start()}>
+                  Start review
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => void addNote()}>
+                <NotebookPen className="size-3.5" />
+                Add task
               </Button>
-            )}
+            </div>
           </div>
         ) : (
           <ul className="flex flex-col gap-2 p-3">
@@ -274,6 +327,12 @@ export function AuditPanel(): React.JSX.Element {
           <p className="text-[10px] text-muted-foreground">
             Add a workspace to have Nisaba find the file behind each pin.
           </p>
+        )}
+        {pins.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={() => void addNote()}>
+            <NotebookPen className="size-3.5" />
+            Add a typed task
+          </Button>
         )}
         <div className="grid grid-cols-2 gap-2">
           {active ? (
@@ -328,19 +387,24 @@ export function AuditPanel(): React.JSX.Element {
           <SquareTerminal className="size-4" />
           Implement with agent
         </AgentMenu>
-        {pins.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              void stop()
-              reset()
-            }}
-            className="text-muted-foreground"
-          >
-            {savedId ? 'Close audit' : 'Discard review'}
-          </Button>
-        )}
+        {pins.length > 0 &&
+          (savedId ? (
+            <Button variant="ghost" size="sm" onClick={close} className="text-muted-foreground">
+              Close audit
+            </Button>
+          ) : (
+            // Unsaved, so closing is a delete: the pins only exist in this panel.
+            <ConfirmDelete
+              title="Discard this review?"
+              confirmLabel="Discard"
+              description={`${pins.length} pin(s) that were never saved.`}
+              onConfirm={close}
+            >
+              <Button variant="ghost" size="sm" className="text-muted-foreground">
+                Discard review
+              </Button>
+            </ConfirmDelete>
+          ))}
       </div>
     </aside>
   )

@@ -1,7 +1,9 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { copyFile, mkdir } from 'fs/promises'
+import { extname, join } from 'path'
 import { activeView } from './browser'
 import { captureRect, pageMeta } from './capture'
-import { newId, writeImage, type Rect } from './library'
+import { libraryRoot, newId, writeImage, type Rect } from './library'
 
 export type PinContext = {
   selector: string
@@ -350,6 +352,28 @@ export function registerAuditIpc(): void {
       true
     )
   )
+
+  /**
+   * A picture for a task that is not on the page — a mockup, a screenshot from somewhere else,
+   * a photo of a whiteboard. Copied into the library rather than linked, so the audit still
+   * exports after the original is moved. The bytes are left alone: whatever Chromium can show
+   * in the panel it can also show in the exported plan.
+   */
+  ipcMain.handle('audit:attach', async (e): Promise<string | null> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const result = await dialog.showOpenDialog(win!, {
+      title: 'Attach an image to this task',
+      properties: ['openFile'],
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif'] }]
+    })
+    const picked = result.filePaths[0]
+    if (result.canceled || !picked) return null
+
+    const rel = `audits/${newId()}${extname(picked).toLowerCase() || '.png'}`
+    await mkdir(join(libraryRoot(), 'audits'), { recursive: true })
+    await copyFile(picked, join(libraryRoot(), rel))
+    return rel
+  })
 
   ipcMain.handle('audit:stop', async () => {
     const found = activeView()
